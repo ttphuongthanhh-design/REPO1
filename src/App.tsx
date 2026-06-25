@@ -1205,7 +1205,29 @@ export default function App() {
                         Chưa có task hoàn thành. Kéo task vào đây hoặc đặt trạng thái "Done" để ghi nhận.
                       </div>
                     ) : (
-                      historyTasks.map(task => renderTaskCard(task, 3))
+                      historyTasks.map(task => (
+                        <div
+                          className="history-card task-card animate-fade-in"
+                          key={task.id}
+                          draggable={isEditMode}
+                          onDragStart={() => isEditMode && setDraggedTaskId(task.id)}
+                          onDragEnd={() => setDraggedTaskId(null)}
+                        >
+                          <div className="tc-actions edit-only">
+                            <button className="flex items-center gap-1 text-[9px]" onClick={() => handleOpenEditModal(task)}>
+                              <Edit2 size={8} /> Edit
+                            </button>
+                            <button className="btn-r flex items-center gap-1 text-[9px] px-2 py-0.5" onClick={() => handleDeleteTask(task.id)}>
+                              <Trash2 size={8} /> Del
+                            </button>
+                          </div>
+                          <div className="hc-title font-semibold">{task.title}</div>
+                          <span className="av-tag">
+                            <span className="av" style={{ background: memberColor(task.assignee), color: '#fff' }}>{memberInitial(task.assignee)}</span>
+                            {memberName(task.assignee)}
+                          </span>
+                        </div>
+                      ))
                     )}
                   </div>
                 </div>
