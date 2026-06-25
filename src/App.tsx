@@ -224,6 +224,45 @@ export default function App() {
     return DEFAULT_MEMBERS;
   });
 
+  // --- Server sync (Postgres-backed via /api/state) ---
+  // The app keeps working offline via localStorage; this layer adds shared persistence.
+  const serverLoadedRef = React.useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/state')
+      .then(r => (r.ok ? r.json() : null))
+      .then(data => {
+        if (cancelled || !data) return;
+        const hasTasks = Array.isArray(data.tasks) && data.tasks.length > 0;
+        if (hasTasks) {
+          setTasks(data.tasks.map((t: Task) => (t.scope as string) === 'da' ? { ...t, scope: 'pd' } : t));
+        }
+        if (data.subtypes && typeof data.subtypes === 'object') {
+          setSubtypes(prev => ({ ...prev, ...data.subtypes }));
+        }
+        if (Array.isArray(data.members) && data.members.length > 0) {
+          setMembers(data.members.map((m: Member) => ({ ...m, removable: m.id !== LOCKED_MEMBER_ID })));
+        }
+      })
+      .catch(() => { /* offline: fall back to localStorage data already loaded */ })
+      .finally(() => { if (!cancelled) serverLoadedRef.current = true; });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Persist combined state to the server (debounced) after the initial load.
+  useEffect(() => {
+    if (!serverLoadedRef.current) return;
+    const id = setTimeout(() => {
+      fetch('/api/state', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tasks, subtypes, members }),
+      }).catch(() => { /* ignore: localStorage still holds the data */ });
+    }, 600);
+    return () => clearTimeout(id);
+  }, [tasks, subtypes, members]);
+
   // Member lookup helpers
   const memberById = (id: string) => members.find(m => m.id === id);
   const memberName = (id: string) => memberById(id)?.name ?? id;
