@@ -576,12 +576,13 @@ button:active {
 
   /* Kanban: horizontal scroll, each column ~85% wide */
   .board {
-    grid-template-columns: repeat(5, 85%);
+    grid-template-columns: repeat(4, 85%);
     overflow-x: auto;
     gap: 10px;
     padding-bottom: 8px;
     -webkit-overflow-scrolling: touch;
   }
+  .history-grid { grid-template-columns: 1fr; }
 
   /* Weekly KPI cards stack */
   .scope-kpi-grid { grid-template-columns: 1fr; }
@@ -616,7 +617,7 @@ button:active {
 
 @media (max-width: 480px) {
   .stats { grid-template-columns: repeat(2, 1fr); }
-  .board { grid-template-columns: repeat(5, 90%); }
+  .board { grid-template-columns: repeat(4, 90%); }
   .dash-card .dc-val { font-size: 26px; }
   .nav-tab { padding: 7px 7px; font-size: 11px; }
 }
@@ -830,9 +831,69 @@ button:active {
 
 .board {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 12px;
   align-items: flex-start;
+}
+
+/* History Recorded Task box — collects completed (Done) tasks */
+.history-box {
+  background: var(--col-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 16px;
+  box-shadow: var(--panel-shadow);
+  padding: 0 0 14px;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+.history-box.dov {
+  border: 2px dashed var(--color-primary);
+  background: var(--color-primary-glow);
+}
+.history-h {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--panel-border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.history-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-main);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.history-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+.history-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  padding: 14px 16px 0;
+}
+.history-grid .task-card {
+  margin-bottom: 0;
+  border-left: 3px solid var(--color-success, #10b981);
+}
+.history-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-style: italic;
+  padding: 28px 12px;
+}
+.tc-done-date {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-success, #10b981);
+  margin-top: 8px;
 }
 .col {
   background: var(--col-bg);

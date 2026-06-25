@@ -724,6 +724,77 @@ export default function App() {
     }
   };
 
+  // Shared task-card renderer used by both the Kanban board and the History Recorded Task box.
+  const renderTaskCard = (task: Task, colIdx: number) => (
+    <div
+      className="task-card animate-fade-in"
+      key={task.id}
+      draggable={isEditMode}
+      onDragStart={() => isEditMode && setDraggedTaskId(task.id)}
+      onDragEnd={() => setDraggedTaskId(null)}
+    >
+      <div className="tc-actions edit-only">
+        <button className="flex items-center gap-1 text-[9px]" onClick={() => handleOpenEditModal(task)}>
+          <Edit2 size={8} /> Edit
+        </button>
+        <button className="btn-r flex items-center gap-1 text-[9px] px-2 py-0.5" onClick={() => handleDeleteTask(task.id)}>
+          <Trash2 size={8} /> Del
+        </button>
+      </div>
+
+      <div className="mb-2 flex flex-wrap gap-1">
+        <span className={`badge s-${task.scope}`}>{SCOPES[task.scope]}</span>
+        {task.subtype && <span className="text-[10px] text-slate-400 self-center">{task.subtype}</span>}
+      </div>
+
+      <div className="tc-title font-semibold">{task.title}</div>
+
+      <div className="tc-meta">
+        <span className={`badge ${PRIORITY_BADGES[task.priority]}`}>{task.priority}</span>
+        <span className="av-tag">
+          <span className="av" style={{ background: memberColor(task.assignee), color: '#fff' }}>{memberInitial(task.assignee)}</span>
+          {memberName(task.assignee)}
+        </span>
+      </div>
+
+      {colIdx !== 4 ? (
+        <div className="tc-pct">
+          <div className="pct-bar">
+            <div className="pct-fill" style={{ width: `${task.pct}%` }}></div>
+          </div>
+          <span className="pct-lbl font-semibold text-slate-400">{task.pct}%</span>
+        </div>
+      ) : (
+        <div className="text-[10px] text-rose-500 font-bold mt-2">✕ Failed / Rejected</div>
+      )}
+
+      {colIdx === 3 && (
+        <div className="tc-done-date">✓ Done {(task.completedAt || task.deadline) ? `· ${new Date(task.completedAt || task.deadline).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}` : ''}</div>
+      )}
+
+      {getDeadlineBadge(task.deadline, colIdx)}
+
+      {task.link && (
+        <a
+          className="tc-link"
+          href={task.link}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={e => e.stopPropagation()}
+        >
+          <LinkIcon size={10} />
+          <span className="tc-link-text">{task.link.replace(/^https?:\/\/(www\.)?/, '')}</span>
+        </a>
+      )}
+
+      {task.note && (
+        <div className="text-[10px] text-slate-400 mt-2 bg-slate-950/40 p-2 rounded border-l-2 border-indigo-500 italic">
+          "{task.note}"
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className={`min-h-screen pb-12 ${isEditMode ? '' : 'read-only'}`}>
       {/* Navigation */}
@@ -1044,6 +1115,8 @@ export default function App() {
             {/* Board Columns */}
             <div className="board mt-2">
               {COLS.map((colName, colIdx) => {
+                // Done tasks live in the "History Recorded Task" box below the board.
+                if (colIdx === 3) return null;
                 const filteredColTasks = tasks.filter(t => {
                   const matchesAssignee = assigneeFilter === 'all' || t.assignee === assigneeFilter;
                   const matchesScope = scopeFilter === 'all' || t.scope === scopeFilter;
@@ -1080,71 +1153,7 @@ export default function App() {
                     </div>
 
                     <div className="tasks-area">
-                      {filteredColTasks.map(task => (
-                        <div 
-                          className="task-card animate-fade-in"
-                          key={task.id}
-                          draggable={isEditMode}
-                          onDragStart={() => isEditMode && setDraggedTaskId(task.id)}
-                          onDragEnd={() => setDraggedTaskId(null)}
-                        >
-                          <div className="tc-actions edit-only">
-                            <button className="flex items-center gap-1 text-[9px]" onClick={() => handleOpenEditModal(task)}>
-                              <Edit2 size={8} /> Edit
-                            </button>
-                            <button className="btn-r flex items-center gap-1 text-[9px] px-2 py-0.5" onClick={() => handleDeleteTask(task.id)}>
-                              <Trash2 size={8} /> Del
-                            </button>
-                          </div>
-
-                          <div className="mb-2 flex flex-wrap gap-1">
-                            <span className={`badge s-${task.scope}`}>{SCOPES[task.scope]}</span>
-                            {task.subtype && <span className="text-[10px] text-slate-400 self-center">{task.subtype}</span>}
-                          </div>
-
-                          <div className="tc-title font-semibold">{task.title}</div>
-                          
-                          <div className="tc-meta">
-                            <span className={`badge ${PRIORITY_BADGES[task.priority]}`}>{task.priority}</span>
-                            <span className="av-tag">
-                              <span className="av" style={{ background: memberColor(task.assignee), color: '#fff' }}>{memberInitial(task.assignee)}</span>
-                              {memberName(task.assignee)}
-                            </span>
-                          </div>
-
-                          {colIdx !== 4 ? (
-                            <div className="tc-pct">
-                              <div className="pct-bar">
-                                <div className="pct-fill" style={{ width: `${task.pct}%` }}></div>
-                              </div>
-                              <span className="pct-lbl font-semibold text-slate-400">{task.pct}%</span>
-                            </div>
-                          ) : (
-                            <div className="text-[10px] text-rose-500 font-bold mt-2">✕ Failed / Rejected</div>
-                          )}
-
-                          {getDeadlineBadge(task.deadline, colIdx)}
-
-                          {task.link && (
-                            <a
-                              className="tc-link"
-                              href={task.link}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={e => e.stopPropagation()}
-                            >
-                              <LinkIcon size={10} />
-                              <span className="tc-link-text">{task.link.replace(/^https?:\/\/(www\.)?/, '')}</span>
-                            </a>
-                          )}
-
-                          {task.note && (
-                            <div className="text-[10px] text-slate-400 mt-2 bg-slate-950/40 p-2 rounded border-l-2 border-indigo-500 italic">
-                              "{task.note}"
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                      {filteredColTasks.map(task => renderTaskCard(task, colIdx))}
                     </div>
 
                     {colIdx !== 4 && (
@@ -1156,6 +1165,52 @@ export default function App() {
                 );
               })}
             </div>
+
+            {/* History Recorded Task — completed (Done) tasks; still counted in Daily & Weekly reports */}
+            {(() => {
+              const historyTasks = tasks
+                .filter(t => {
+                  const matchesAssignee = assigneeFilter === 'all' || t.assignee === assigneeFilter;
+                  const matchesScope = scopeFilter === 'all' || t.scope === scopeFilter;
+                  const matchesSearch = !searchQuery || t.title.toLowerCase().includes(searchQuery.toLowerCase());
+                  return t.col === 3 && matchesAssignee && matchesScope && matchesSearch;
+                })
+                .sort((a, b) => (b.completedAt || b.deadline || '').localeCompare(a.completedAt || a.deadline || ''));
+
+              return (
+                <div
+                  className="history-box mt-4"
+                  onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add('dov'); }}
+                  onDragLeave={e => e.currentTarget.classList.remove('dov')}
+                  onDrop={e => {
+                    e.preventDefault();
+                    e.currentTarget.classList.remove('dov');
+                    if (draggedTaskId !== null) {
+                      updateTaskField(draggedTaskId, 'col', 3);
+                      setDraggedTaskId(null);
+                    }
+                  }}
+                >
+                  <div className="history-h">
+                    <span className="history-title">
+                      <span className="col-dot" style={{ background: COL_COLORS[3], color: COL_COLORS[3] }}></span>
+                      History Recorded Task
+                    </span>
+                    <span className="history-sub">Task đã hoàn thành (Done) — vẫn được ghi nhận vào Daily &amp; Weekly Report</span>
+                    <span className="col-cnt ml-auto">{historyTasks.length}</span>
+                  </div>
+                  <div className="history-grid">
+                    {historyTasks.length === 0 ? (
+                      <div className="history-empty">
+                        Chưa có task hoàn thành. Kéo task vào đây hoặc đặt trạng thái "Done" để ghi nhận.
+                      </div>
+                    ) : (
+                      historyTasks.map(task => renderTaskCard(task, 3))
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
 
