@@ -162,6 +162,7 @@ interface KpiChannel {
   notes: string;                 // user-editable
   characteristics: string;       // channel description (Section 2)
   curve: [number, number, number, number]; // fixed seasonal split across Q1..Q4 (sums to 1)
+  actual?: number[];             // 12 monthly actual-KPI figures (user-editable)
 }
 interface KpiData {
   totalTarget: number;           // total annual target in VND (user-editable, prominent)
@@ -319,6 +320,18 @@ export default function App() {
   const updateKpiChannel = (id: number, field: keyof KpiChannel, value: any) => {
     if (!isEditMode) return;
     setKpis(prev => ({ ...prev, channels: prev.channels.map(c => c.id === id ? { ...c, [field]: field === 'allocation' ? Math.max(0, +value || 0) : value } : c) }));
+  };
+  const updateKpiActual = (id: number, monthIdx: number, value: any) => {
+    if (!isEditMode) return;
+    setKpis(prev => ({
+      ...prev,
+      channels: prev.channels.map(c => {
+        if (c.id !== id) return c;
+        const actual = Array.from({ length: 12 }, (_, i) => (c.actual && c.actual[i]) || 0);
+        actual[monthIdx] = Math.max(0, +value || 0);
+        return { ...c, actual };
+      }),
+    }));
   };
   // Monthly Target Allocation table — sort & filter
   const [kpiMonthSort, setKpiMonthSort] = useState<{ col: 'name' | 'total' | number; dir: 'asc' | 'desc' }>({ col: 'total', dir: 'desc' });
@@ -1609,7 +1622,7 @@ export default function App() {
                   </div>
 
                   {/* SECTION 1 */}
-                  <div className="kpi-section-h">Section 1 — Annual Revenue Plan by Distribution Channel</div>
+                  <div className="kpi-section-h">Section 1 — Phân bổ kế hoạch doanh thu theo quý</div>
                   <div className="kpi-table-wrap">
                     <table className="kpi-table">
                       <thead>
@@ -1628,7 +1641,10 @@ export default function App() {
                             <td className="kpi-sticky-col kpi-channel">{r.c.channel}</td>
                             <td className="kpi-num">
                               {isEditMode ? (
-                                <input type="number" className="kpi-cell-input" value={r.c.allocation} onChange={e => updateKpiChannel(r.c.id, 'allocation', e.target.value)} />
+                                <span className="kpi-alloc-wrap">
+                                  <input type="number" className="kpi-cell-input kpi-alloc-input" value={r.c.allocation} onChange={e => updateKpiChannel(r.c.id, 'allocation', e.target.value)} />
+                                  <span className="kpi-alloc-pct">%</span>
+                                </span>
                               ) : `${r.c.allocation}%`}
                             </td>
                             <td className="kpi-num kpi-money">{vnd(r.annual)}</td>
@@ -1665,6 +1681,7 @@ export default function App() {
                     let mRows = rows.map(r => ({
                       c: r.c,
                       m: Array.from({ length: 12 }, (_, i) => r.annual * r.c.curve[Math.floor(i / 3)] / 3),
+                      a: Array.from({ length: 12 }, (_, i) => (r.c.actual && r.c.actual[i]) || 0),
                       total: r.annual,
                     }));
                     if (kpiMonthFilter !== 'all') mRows = mRows.filter(r => r.c.priority === kpiMonthFilter);
@@ -1675,14 +1692,17 @@ export default function App() {
                       return (a.m[kpiMonthSort.col as number] - b.m[kpiMonthSort.col as number]) * dir;
                     });
                     const colTotals = Array.from({ length: 12 }, (_, i) => mRows.reduce((s, r) => s + r.m[i], 0));
+                    const actTotals = Array.from({ length: 12 }, (_, i) => mRows.reduce((s, r) => s + r.a[i], 0));
                     const grand = mRows.reduce((s, r) => s + r.total, 0);
-                    const maxTotal = Math.max(1, ...mRows.map(r => r.total));
+                    const grandAct = mRows.reduce((s, r) => s + r.a.reduce((x, y) => x + y, 0), 0);
                     const arrow = (col: 'name' | 'total' | number) => kpiMonthSort.col === col ? (kpiMonthSort.dir === 'asc' ? ' ↑' : ' ↓') : '';
+                    const actCls = (act: number, tgt: number) => act <= 0 ? '' : act >= tgt ? 'kpi-act-up' : 'kpi-act-down';
+                    const achCls = (act: number, tgt: number) => act <= 0 ? 'kpi-ach-none' : act >= tgt ? 'kpi-ach-up' : act >= tgt * 0.7 ? 'kpi-ach-mid' : 'kpi-ach-down';
 
                     return (
                       <>
                         <div className="kpi-section-bar">
-                          <div className="kpi-section-h2">PHÂN BỔ MỤC TIÊU THEO THÁNG</div>
+                          <div className="kpi-section-h2">PHÂN BỔ MỤC TIÊU THEO THÁNG · TARGET vs ACTUAL</div>
                           <div className="kpi-filter">
                             <span className="kpi-filter-lbl">Lọc hạng mục:</span>
                             {(['all', 'High', 'Medium', 'Low'] as const).map(f => (
@@ -1698,31 +1718,54 @@ export default function App() {
                               <tr>
                                 <th className="kpi-sticky-col kpi-th-sort" onClick={() => toggleKpiMonthSort('name')}>Hạng mục / KPI{arrow('name')}</th>
                                 {months.map((m, i) => (
-                                  <th key={i} className="kpi-th-sort" onClick={() => toggleKpiMonthSort(i)}>{m}{arrow(i)}</th>
+                                  <React.Fragment key={i}>
+                                    <th className="kpi-th-sort" onClick={() => toggleKpiMonthSort(i)}>{m}{arrow(i)}</th>
+                                    <th className="kpi-actual-col">{`T${i + 1} Actual`}</th>
+                                  </React.Fragment>
                                 ))}
-                                <th className="kpi-th-sort kpi-total-col" onClick={() => toggleKpiMonthSort('total')}>Tổng{arrow('total')}</th>
+                                <th className="kpi-th-sort kpi-total-col" onClick={() => toggleKpiMonthSort('total')}>Tổng KPI{arrow('total')}</th>
+                                <th className="kpi-total-col kpi-actual-col">Tổng Actual KPI</th>
                               </tr>
                             </thead>
                             <tbody>
-                              {mRows.map((r, idx) => (
-                                <tr key={r.c.id} className={idx % 2 ? 'kpi-alt' : ''}>
-                                  <td className="kpi-sticky-col kpi-channel">{r.c.channel}</td>
-                                  {r.m.map((v, i) => <td key={i} className="kpi-num">{compact(v)}</td>)}
-                                  <td className="kpi-num kpi-total-col">
-                                    <div className="kpi-totalcell">
-                                      <span className="kpi-money">{compact(r.total)}</span>
-                                      <span className="kpi-bar"><span className="kpi-bar-fill" style={{ width: `${(r.total / maxTotal) * 100}%` }}></span></span>
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))}
+                              {mRows.map((r, idx) => {
+                                const actSum = r.a.reduce((x, y) => x + y, 0);
+                                return (
+                                  <tr key={r.c.id} className={idx % 2 ? 'kpi-alt' : ''}>
+                                    <td className="kpi-sticky-col kpi-channel">{r.c.channel}</td>
+                                    {r.m.map((v, i) => (
+                                      <React.Fragment key={i}>
+                                        <td className="kpi-num">{compact(v)}</td>
+                                        <td className="kpi-num kpi-actual-col">
+                                          {isEditMode ? (
+                                            <input type="number" className="kpi-cell-input kpi-actual-input" value={r.a[i] || 0} onChange={e => updateKpiActual(r.c.id, i, e.target.value)} />
+                                          ) : <span className={actCls(r.a[i], v)}>{r.a[i] ? compact(r.a[i]) : '—'}</span>}
+                                        </td>
+                                      </React.Fragment>
+                                    ))}
+                                    <td className="kpi-num kpi-total-col kpi-money">{compact(r.total)}</td>
+                                    <td className="kpi-num kpi-total-col kpi-actual-col">
+                                      <div className="kpi-totalcell">
+                                        <span className="kpi-money">{actSum ? compact(actSum) : '—'}</span>
+                                        <span className={`kpi-ach ${achCls(actSum, r.total)}`}>{r.total > 0 && actSum > 0 ? Math.round(actSum / r.total * 100) + '%' : '—'}</span>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
                               {mRows.length === 0 && (
-                                <tr><td className="kpi-sticky-col" colSpan={14} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Không có hạng mục nào khớp bộ lọc.</td></tr>
+                                <tr><td className="kpi-sticky-col" colSpan={27} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Không có hạng mục nào khớp bộ lọc.</td></tr>
                               )}
                               <tr className="kpi-total-row">
                                 <td className="kpi-sticky-col">TỔNG</td>
-                                {colTotals.map((v, i) => <td key={i} className="kpi-num">{compact(v)}</td>)}
+                                {colTotals.map((v, i) => (
+                                  <React.Fragment key={i}>
+                                    <td className="kpi-num">{compact(v)}</td>
+                                    <td className="kpi-num kpi-actual-col">{actTotals[i] ? compact(actTotals[i]) : '—'}</td>
+                                  </React.Fragment>
+                                ))}
                                 <td className="kpi-num kpi-total-col kpi-money">{compact(grand)}</td>
+                                <td className="kpi-num kpi-total-col kpi-actual-col kpi-money">{grandAct ? compact(grandAct) : '—'}</td>
                               </tr>
                             </tbody>
                           </table>
@@ -1730,7 +1773,8 @@ export default function App() {
 
                         <div className="kpi-legend">
                           <span><b>Priority:</b> <span className="kpi-pri kpi-pri-high">High</span> <span className="kpi-pri kpi-pri-med">Medium</span> <span className="kpi-pri kpi-pri-low">Low</span></span>
-                          <span className="kpi-legend-note">Giá trị từng tháng được tính tự động từ mục tiêu năm &amp; phân bổ quý của mỗi kênh · bấm tiêu đề cột để sắp xếp.</span>
+                          <span><b>Actual vs Target:</b> <span className="kpi-act-up">≥ target</span> · <span className="kpi-act-down">&lt; target</span></span>
+                          <span className="kpi-legend-note">Cột Target tính tự động từ mục tiêu năm; nhập số Actual KPI (chế độ Edit) để so sánh · bấm tiêu đề tháng để sắp xếp.</span>
                         </div>
                       </>
                     );
