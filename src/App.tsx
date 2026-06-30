@@ -302,8 +302,13 @@ export default function App() {
     return new Date(iso).getTime() >= cutoff.getTime();
   };
 
+  const ACTIVITY_LIMIT = 30; // log holds max 30; the 31st resets the counter back to 1 and loops
   const logActivity = (taskId: number, title: string, type: Activity['type'], detail: string) => {
-    setActivity(prev => [{ at: new Date().toISOString(), taskId, title, type, detail }, ...prev].filter(a => isWithinRetention(a.at)).slice(0, 500));
+    const entry: Activity = { at: new Date().toISOString(), taskId, title, type, detail };
+    setActivity(prev => {
+      const next = [entry, ...prev].filter(a => isWithinRetention(a.at));
+      return next.length > ACTIVITY_LIMIT ? [entry] : next; // hit 31 → reset to 1
+    });
   };
 
   useEffect(() => {
@@ -313,7 +318,7 @@ export default function App() {
   // Prune entries older than the retention window on load (covers data restored from storage/server).
   useEffect(() => {
     setActivity(prev => {
-      const kept = prev.filter(a => isWithinRetention(a.at));
+      const kept = prev.filter(a => isWithinRetention(a.at)).slice(0, ACTIVITY_LIMIT);
       return kept.length === prev.length ? prev : kept;
     });
   }, []);
@@ -406,7 +411,7 @@ export default function App() {
           setMembers(data.members.map((m: Member) => ({ ...m, removable: m.id !== LOCKED_MEMBER_ID })));
         }
         if (Array.isArray(data.activity)) {
-          setActivity(data.activity.filter((a: Activity) => isWithinRetention(a.at)));
+          setActivity(data.activity.filter((a: Activity) => isWithinRetention(a.at)).slice(0, ACTIVITY_LIMIT));
         }
         if (data.kpis && (data.kpis.years || Array.isArray(data.kpis.channels))) {
           setKpis(migrateKpis(data.kpis));
@@ -1023,7 +1028,7 @@ export default function App() {
     const W = 720, H = 250, padL = 60, padR = 16, padT = 14, padB = 34;
     const plotW = W - padL - padR, plotH = H - padT - padB;
     const bandW = plotW / n;
-    const colW = Math.max(10, Math.min(46, bandW * (n > 6 ? 0.5 : 0.34)));
+    const colW = Math.max(10, Math.min(n > 6 ? 46 : 96, bandW * (n > 6 ? 0.5 : 0.62)));
     const yfn = (v: number) => padT + plotH - (v / yMax) * plotH;
     const xc = (i: number) => padL + bandW * i + bandW / 2;
     const linePts = actuals.map((v, i) => `${xc(i)},${yfn(v)}`).join(' ');
