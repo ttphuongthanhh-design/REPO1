@@ -1660,7 +1660,7 @@ export default function App() {
 
                   {/* SECTION 1 header with channel filter */}
                   <div className="kpi-section-bar">
-                    <div className="kpi-section-h2">Section 1 — Phân bổ kế hoạch doanh thu theo quý</div>
+                    <div className="kpi-section-h2">Phân bổ kế hoạch doanh thu theo quý</div>
                     <div className="kpi-chan-filter">
                       <button className="kpi-chan-btn" onClick={() => setKpiChanMenuOpen(o => !o)}>
                         Kênh: {kpiChannelFilter ? `${selIds.length}/${allIds.length}` : `Tất cả (${allIds.length})`} ▾
@@ -1762,7 +1762,7 @@ export default function App() {
                     return (
                       <>
                         <div className="kpi-section-bar">
-                          <div className="kpi-section-h2">PHÂN BỔ MỤC TIÊU THEO THÁNG · TARGET vs ACTUAL · {kpiYear}</div>
+                          <div className="kpi-section-h2">PHÂN BỔ MỤC TIÊU THEO THÁNG</div>
                         </div>
                         <div className="kpi-table-wrap">
                           <table className="kpi-table kpi-month-table">
@@ -1821,12 +1821,6 @@ export default function App() {
                               </tr>
                             </tbody>
                           </table>
-                        </div>
-
-                        <div className="kpi-legend">
-                          <span><b>Priority:</b> <span className="kpi-pri kpi-pri-high">High</span> <span className="kpi-pri kpi-pri-med">Medium</span> <span className="kpi-pri kpi-pri-low">Low</span></span>
-                          <span><b>Actual vs Target:</b> <span className="kpi-act-up">≥ target</span> · <span className="kpi-act-down">&lt; target</span></span>
-                          <span className="kpi-legend-note">Cột Target tính tự động từ mục tiêu năm; nhập số Actual KPI (chế độ Edit) để so sánh · bấm tiêu đề tháng để sắp xếp.</span>
                         </div>
                       </>
                     );
