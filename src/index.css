@@ -2629,6 +2629,27 @@ html:not(.dark) .add-btn.hover\:text-white:hover { color: var(--text-main) !impo
   .kpi-live-vals { gap: 10px; }
 }
 
+/* Revenue KPI Target-vs-Actual column chart (Dashboard) */
+.kpi-chart-panel { margin-bottom: 20px; }
+.kpi-chart { display: flex; align-items: flex-end; justify-content: space-around; gap: 24px; padding: 8px 0 0; }
+.kpi-chart-group { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.kpi-chart-bars { display: flex; align-items: flex-end; gap: 10px; }
+.kpi-chart-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; }
+.kpi-chart-bar { width: 40px; min-height: 4px; border-radius: 6px 6px 0 0; box-shadow: var(--panel-shadow); transition: height 0.5s cubic-bezier(0.4,0,0.2,1); }
+.kpi-chart-bar.target { background: linear-gradient(180deg, #a5b4fc, #6366f1); }
+.kpi-chart-bar.actual.up { background: linear-gradient(180deg, #34d399, #10b981); }
+.kpi-chart-bar.actual.mid { background: linear-gradient(180deg, #fbbf24, #f59e0b); }
+.kpi-chart-bar.actual.down { background: linear-gradient(180deg, #f87171, #ef4444); }
+.kpi-chart-val { font-size: 11px; font-weight: 800; color: var(--text-main); white-space: nowrap; }
+.kpi-chart-val.up { color: #059669; } .kpi-chart-val.mid { color: #ca8a04; } .kpi-chart-val.down { color: #dc2626; }
+.dark .kpi-chart-val.up { color: #34d399; } .dark .kpi-chart-val.mid { color: #facc15; } .dark .kpi-chart-val.down { color: #f87171; }
+.kpi-chart-year { font-size: 13px; font-weight: 800; color: var(--text-main); padding-top: 6px; border-top: 1px solid var(--panel-border); width: 100%; text-align: center; }
+.kpi-chart-legend { display: flex; align-items: center; gap: 18px; margin-top: 16px; font-size: 11px; color: var(--text-muted); flex-wrap: wrap; }
+.kpi-chart-legend .lg { width: 12px; height: 12px; border-radius: 3px; display: inline-block; vertical-align: middle; margin-right: 5px; }
+.kpi-chart-legend .lg-target { background: #6366f1; }
+.kpi-chart-legend .lg-actual { background: #10b981; }
+.kpi-chart-hint { margin-left: auto; font-style: italic; }
+
 /* Compact allocation input — fits the text, no dead space */
 .kpi-alloc-wrap { display: inline-flex; align-items: center; justify-content: flex-end; gap: 3px; }
 .kpi-alloc-input { width: 52px; min-width: 0; padding: 4px 6px; text-align: right; }
