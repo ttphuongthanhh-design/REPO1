@@ -432,7 +432,7 @@ export default function App() {
   const memberColor = (id: string) => memberById(id)?.color ?? 'linear-gradient(135deg, #94a3b8, #475569)';
   const memberInitial = (id: string) => (memberById(id)?.name ?? id).trim().charAt(0).toUpperCase() || '?';
 
-  const [activeTab, setActiveTab] = useState<'dash' | 'kanban' | 'tracker' | 'timeline' | 'daily' | 'weekly' | 'kpis' | 'input'>('input');
+  const [activeTab, setActiveTab] = useState<'dash' | 'kanban' | 'tracker' | 'timeline' | 'daily' | 'weekly' | 'kpis'>('dash');
 
   const [darkMode, setDarkMode] = useState(() => {
     try {
@@ -480,56 +480,34 @@ export default function App() {
   });
   const [weeklyNote, setWeeklyNote] = useState('');
 
-  // --- Roles & permissions ---
-  // Default role = MEMBER (can only submit/update own daily work). ADMIN unlocks full control with the password.
+  // --- Security / permissions ---
+  // Fixed edit password baked into the file (G@M1234).
   const editPwdHash = BAKED_EDIT_HASH;
-  const [role, setRole] = useState<'member' | 'admin'>('member');
-  const isEditMode = role === 'admin'; // admin = full edit across every protected sheet
-  const [currentMemberId, setCurrentMemberId] = useState<string>(() => {
-    try { return localStorage.getItem('impact_me') || LOCKED_MEMBER_ID; } catch { return LOCKED_MEMBER_ID; }
-  });
-  useEffect(() => { try { localStorage.setItem('impact_me', currentMemberId); } catch { /* ignore */ } }, [currentMemberId]);
-  // Members may only edit tasks assigned to themselves; admins edit anything.
-  const canEditTask = (id: number) => role === 'admin' || tasks.find(t => t.id === id)?.assignee === currentMemberId;
-
-  // Admin login modal
+  // Default = View (locked). Owner unlocks with the password.
+  const [isEditMode, setIsEditMode] = useState<boolean>(false);
+  // Unlock (view -> edit) modal
   const [showUnlockModal, setShowUnlockModal] = useState(false);
   const [unlockInput, setUnlockInput] = useState('');
   const [unlockError, setUnlockError] = useState(false);
-  const enterEditMode = () => { setUnlockInput(''); setUnlockError(false); setShowUnlockModal(true); };
+
+  const enterEditMode = () => {
+    setUnlockInput('');
+    setUnlockError(false);
+    setShowUnlockModal(true);
+  };
+
   const submitUnlock = () => {
     if (hashPwd(unlockInput) === editPwdHash) {
-      setRole('admin'); setShowUnlockModal(false); setUnlockInput(''); setUnlockError(false); setActiveTab('dash');
+      setIsEditMode(true);
+      setShowUnlockModal(false);
+      setUnlockInput('');
+      setUnlockError(false);
     } else {
       setUnlockError(true);
     }
   };
-  const lockToView = () => { setRole('member'); setActiveTab('input'); };
-  // Members can never sit on a protected sheet.
-  useEffect(() => { if (role !== 'admin' && activeTab !== 'input') setActiveTab('input'); }, [role, activeTab]);
 
-  // Member "Daily Task Input" form + comment drafts
-  const [dailyForm, setDailyForm] = useState<{ title: string; scope: 'ae' | 'si' | 'pd' | 'va' | 'pr'; subtype: string; priority: 'high' | 'med' | 'low'; start: string; deadline: string; col: number; pct: number; note: string }>(() => ({
-    title: '', scope: 'ae', subtype: '', priority: 'med', start: new Date().toISOString().split('T')[0], deadline: '', col: 1, pct: 0, note: '',
-  }));
-  const [commentDrafts, setCommentDrafts] = useState<Record<number, string>>({});
-  const memberAddTask = () => {
-    if (!dailyForm.title.trim()) { alert('Vui lòng nhập tên công việc.'); return; }
-    const nextId = tasks.reduce((m, t) => Math.max(m, t.id), 0) + 1;
-    const t: Task = { id: nextId, assignee: currentMemberId, desc: '', link: '', updatedAt: new Date().toISOString(), ...dailyForm };
-    if (t.col === 3) { t.pct = 100; t.completedAt = new Date().toISOString().split('T')[0]; }
-    setTasks(prev => [...prev, t]);
-    logActivity(nextId, t.title, 'created', `${memberName(currentMemberId)} gửi công việc · ${COLS[t.col]}`);
-    setDailyForm(f => ({ ...f, title: '', note: '', deadline: '' }));
-  };
-  const memberAddComment = (id: number) => {
-    const text = (commentDrafts[id] || '').trim();
-    if (!text || !canEditTask(id)) return;
-    const t = tasks.find(x => x.id === id); if (!t) return;
-    const stamp = new Date().toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
-    updateTaskField(id, 'note', (t.note ? t.note + '\n' : '') + `• ${stamp}: ${text}`);
-    setCommentDrafts(d => ({ ...d, [id]: '' }));
-  };
+  const lockToView = () => setIsEditMode(false);
 
   // Modal States
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -726,7 +704,7 @@ export default function App() {
   };
 
   const updateTaskField = (id: number, field: keyof Task, value: any) => {
-    if (!canEditTask(id)) return;
+    if (!isEditMode) return;
     const before = tasks.find(t => t.id === id);
     setTasks(prev => prev.map(t => {
       if (t.id === id) {
@@ -1033,30 +1011,17 @@ export default function App() {
       {/* Navigation */}
       <nav className="no-print">
         <div className="nav-logo">IMPACT TEAM</div>
-        <div className={`nav-tab ${activeTab === 'input' ? 'active' : ''}`} onClick={() => setActiveTab('input')}>Daily Task Input</div>
-        {role === 'admin' && (
-          <>
-            <div className={`nav-tab ${activeTab === 'dash' ? 'active' : ''}`} onClick={() => setActiveTab('dash')}>Dashboard</div>
-            <div className={`nav-tab ${activeTab === 'kanban' ? 'active' : ''}`} onClick={() => setActiveTab('kanban')}>Kanban</div>
-            <div className={`nav-tab ${activeTab === 'tracker' ? 'active' : ''}`} onClick={() => setActiveTab('tracker')}>Task Tracker</div>
-            <div className={`nav-tab ${activeTab === 'timeline' ? 'active' : ''}`} onClick={() => setActiveTab('timeline')}>Gantt Timeline</div>
-            <div className={`nav-tab ${activeTab === 'daily' ? 'active' : ''}`} onClick={() => setActiveTab('daily')}>Daily Report</div>
-            <div className={`nav-tab ${activeTab === 'weekly' ? 'active' : ''}`} onClick={() => setActiveTab('weekly')}>Weekly Report</div>
-            <div className={`nav-tab ${activeTab === 'kpis' ? 'active' : ''}`} onClick={() => setActiveTab('kpis')}>Target KPIs</div>
-          </>
-        )}
+        <div className={`nav-tab ${activeTab === 'dash' ? 'active' : ''}`} onClick={() => setActiveTab('dash')}>Dashboard</div>
+        <div className={`nav-tab ${activeTab === 'kanban' ? 'active' : ''}`} onClick={() => setActiveTab('kanban')}>Kanban</div>
+        <div className={`nav-tab ${activeTab === 'tracker' ? 'active' : ''}`} onClick={() => setActiveTab('tracker')}>Task Tracker</div>
+        <div className={`nav-tab ${activeTab === 'timeline' ? 'active' : ''}`} onClick={() => setActiveTab('timeline')}>Gantt Timeline</div>
+        <div className={`nav-tab ${activeTab === 'daily' ? 'active' : ''}`} onClick={() => setActiveTab('daily')}>Daily Report</div>
+        <div className={`nav-tab ${activeTab === 'weekly' ? 'active' : ''}`} onClick={() => setActiveTab('weekly')}>Weekly Report</div>
+        <div className={`nav-tab ${activeTab === 'kpis' ? 'active' : ''}`} onClick={() => setActiveTab('kpis')}>Target KPIs</div>
         <div className="nav-right">
-          {role === 'member' && (
-            <div className="nav-who" title="Chọn thành viên đang nhập liệu">
-              <span className="nav-who-lbl">Tôi là</span>
-              <select className="nav-who-sel" value={currentMemberId} onChange={e => setCurrentMemberId(e.target.value)}>
-                {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-              </select>
-            </div>
-          )}
-          <button
-            type="button"
-            onClick={() => setDarkMode(!darkMode)}
+          <button 
+            type="button" 
+            onClick={() => setDarkMode(!darkMode)} 
             className="p-1.5 rounded-lg border border-white/10 hover:bg-white/10 text-slate-300 transition-colors mr-2 flex items-center justify-center"
             title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             style={{ width: '32px', height: '32px', padding: 0 }}
@@ -1064,13 +1029,13 @@ export default function App() {
             {darkMode ? <Sun size={14} className="text-yellow-400" /> : <Moon size={14} />}
           </button>
 
-          {role === 'admin' ? (
-            <button className="lock-pill unlocked" onClick={lockToView} title="Đăng xuất Admin (về chế độ Member)">
-              <Unlock size={13} /> Admin
+          {isEditMode ? (
+            <button className="lock-pill unlocked" onClick={lockToView} title="Khoá lại (chuyển sang Chỉ xem)">
+              <Unlock size={13} /> Đang chỉnh sửa
             </button>
           ) : (
-            <button className="lock-pill locked" onClick={enterEditMode} title="Đăng nhập Admin để toàn quyền">
-              <Lock size={13} /> Đăng nhập Admin
+            <button className="lock-pill locked" onClick={enterEditMode} title="Nhập mật khẩu để chỉnh sửa">
+              <Lock size={13} /> Chỉ xem
             </button>
           )}
 
@@ -1082,130 +1047,6 @@ export default function App() {
 
       {/* Pages Container */}
       <main className="px-6 mt-6">
-        {/* --- DAILY TASK INPUT (Member) --- */}
-        {activeTab === 'input' && (
-          <div className="page active">
-            {(() => {
-              const myTasks = tasks.filter(t => t.assignee === currentMemberId)
-                .sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
-              const done = myTasks.filter(t => t.col === 3).length;
-              return (
-                <div className="input-wrap">
-                  <div className="input-head">
-                    <div>
-                      <h2>Daily Task Input</h2>
-                      <div className="input-sub">Gửi & cập nhật công việc của bạn. Chỉ Admin mới xem được Dashboard, Report &amp; KPIs.</div>
-                    </div>
-                    <div className="input-whochip">
-                      <span className="av" style={{ background: memberColor(currentMemberId), color: '#fff' }}>{memberInitial(currentMemberId)}</span>
-                      <div>
-                        <div className="input-whoname">{memberName(currentMemberId)}</div>
-                        <div className="input-whostat">{myTasks.length} việc · {done} hoàn thành</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* New task form */}
-                  <div className="input-card">
-                    <div className="input-card-h"><Plus size={14} /> Thêm công việc hôm nay</div>
-                    <div className="input-form">
-                      <div className="input-fg input-fg-wide">
-                        <label>Tên công việc *</label>
-                        <input value={dailyForm.title} onChange={e => setDailyForm(f => ({ ...f, title: e.target.value }))} placeholder="Bạn đang làm gì hôm nay?" onKeyDown={e => { if (e.key === 'Enter') memberAddTask(); }} />
-                      </div>
-                      <div className="input-fg">
-                        <label>Scope</label>
-                        <select value={dailyForm.scope} onChange={e => { const sc = e.target.value as typeof dailyForm.scope; setDailyForm(f => ({ ...f, scope: sc, subtype: (subtypes[sc] || [])[0] || '' })); }}>
-                          {(['ae', 'si', 'pd', 'va', 'pr'] as const).map(sc => <option key={sc} value={sc}>{SCOPES[sc]}</option>)}
-                        </select>
-                      </div>
-                      <div className="input-fg">
-                        <label>Sub-type</label>
-                        <select value={dailyForm.subtype} onChange={e => setDailyForm(f => ({ ...f, subtype: e.target.value }))}>
-                          <option value="">— chọn —</option>
-                          {(subtypes[dailyForm.scope] || []).map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                      </div>
-                      <div className="input-fg">
-                        <label>Ưu tiên</label>
-                        <select value={dailyForm.priority} onChange={e => setDailyForm(f => ({ ...f, priority: e.target.value as typeof dailyForm.priority }))}>
-                          <option value="high">High</option><option value="med">Medium</option><option value="low">Low</option>
-                        </select>
-                      </div>
-                      <div className="input-fg">
-                        <label>Trạng thái</label>
-                        <select value={dailyForm.col} onChange={e => setDailyForm(f => ({ ...f, col: +e.target.value }))}>
-                          {COLS.map((c, i) => <option key={i} value={i}>{c}</option>)}
-                        </select>
-                      </div>
-                      <div className="input-fg">
-                        <label>Bắt đầu</label>
-                        <input type="date" value={dailyForm.start} onChange={e => setDailyForm(f => ({ ...f, start: e.target.value }))} />
-                      </div>
-                      <div className="input-fg">
-                        <label>Deadline</label>
-                        <input type="date" value={dailyForm.deadline} onChange={e => setDailyForm(f => ({ ...f, deadline: e.target.value }))} />
-                      </div>
-                      <div className="input-fg">
-                        <label>% hoàn thành</label>
-                        <input type="number" min="0" max="100" value={dailyForm.pct} onChange={e => setDailyForm(f => ({ ...f, pct: Math.min(100, Math.max(0, +e.target.value || 0)) }))} />
-                      </div>
-                      <div className="input-fg input-fg-wide">
-                        <label>Ghi chú</label>
-                        <input value={dailyForm.note} onChange={e => setDailyForm(f => ({ ...f, note: e.target.value }))} placeholder="Ghi chú tiến độ (tuỳ chọn)…" />
-                      </div>
-                      <div className="input-fg input-submit">
-                        <button className="btn-p" onClick={memberAddTask}><Plus size={14} /> Gửi công việc</button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* My tasks */}
-                  <div className="input-card">
-                    <div className="input-card-h"><FileText size={14} /> Công việc của tôi ({myTasks.length})</div>
-                    {myTasks.length === 0 ? (
-                      <div className="input-empty">Chưa có công việc nào. Thêm công việc đầu tiên ở trên.</div>
-                    ) : (
-                      <div className="input-list">
-                        {myTasks.map(t => (
-                          <div className={`input-task ${t.col === 3 ? 'is-done' : ''}`} key={t.id}>
-                            <div className="input-task-top">
-                              <span className={`badge s-${t.scope}`}>{SCOPES[t.scope]}</span>
-                              <span className={`badge ${PRIORITY_BADGES[t.priority]}`}>{t.priority}</span>
-                              <span className="input-task-title">{t.title}</span>
-                              {getDeadlineBadge(t.deadline, t.col)}
-                            </div>
-                            <div className="input-task-ctrl">
-                              <label>Trạng thái
-                                <select value={t.col} onChange={e => updateTaskField(t.id, 'col', e.target.value)}>
-                                  {COLS.map((c, i) => <option key={i} value={i}>{c}</option>)}
-                                </select>
-                              </label>
-                              <label>%
-                                <input type="number" min="0" max="100" value={t.pct} onChange={e => updateTaskField(t.id, 'pct', e.target.value)} />
-                              </label>
-                              <div className="input-task-comment">
-                                <input
-                                  placeholder="Thêm comment / cập nhật…"
-                                  value={commentDrafts[t.id] || ''}
-                                  onChange={e => setCommentDrafts(d => ({ ...d, [t.id]: e.target.value }))}
-                                  onKeyDown={e => { if (e.key === 'Enter') memberAddComment(t.id); }}
-                                />
-                                <button onClick={() => memberAddComment(t.id)}>Gửi</button>
-                              </div>
-                            </div>
-                            {t.note && <div className="input-task-note">{t.note.split('\n').map((ln, i) => <div key={i}>{ln}</div>)}</div>}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })()}
-          </div>
-        )}
-
         {/* --- 1. DASHBOARD --- */}
         {activeTab === 'dash' && (
           <div className="page active">
@@ -2951,13 +2792,13 @@ export default function App() {
         <div className="modal-bg show">
           <div className="modal modal-sm">
             <h3>
-              <span>Đăng nhập Admin</span>
+              <span>Nhập mật khẩu để Chỉnh sửa</span>
               <button type="button" className="bg-transparent border-none text-slate-400 hover:text-slate-200 p-1" onClick={() => setShowUnlockModal(false)}>
                 <X size={16} />
               </button>
             </h3>
             <div className="fg">
-              <label>Mật khẩu Admin</label>
+              <label>Mật khẩu</label>
               <input
                 type="password"
                 autoFocus
@@ -2971,7 +2812,7 @@ export default function App() {
             <div className="modal-actions">
               <button type="button" onClick={() => setShowUnlockModal(false)}>Hủy</button>
               <button type="button" className="btn-p" onClick={submitUnlock}>
-                <Unlock size={14} /> Đăng nhập
+                <Unlock size={14} /> Mở khoá
               </button>
             </div>
           </div>
