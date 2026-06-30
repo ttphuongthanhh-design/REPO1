@@ -1061,8 +1061,8 @@ export default function App() {
             }
             return <rect key={i} x={xc(i) - colW / 2} y={yfn(v)} width={colW} height={Math.max(0, plotH - (yfn(v) - padT))} fill="url(#kpiBar)" rx={3} />;
           })}
-          <polyline points={linePts} fill="none" stroke="var(--text-main)" strokeWidth={2.5} className="kpi-combo-line" />
-          {actuals.map((v, i) => <circle key={i} cx={xc(i)} cy={yfn(v)} r={4} fill="var(--panel-bg)" stroke="var(--text-main)" strokeWidth={2.5} />)}
+          <polyline points={linePts} fill="none" stroke="var(--text-main)" strokeWidth={1.4} className="kpi-combo-line" />
+          {actuals.map((v, i) => <circle key={i} cx={xc(i)} cy={yfn(v)} r={3} fill="var(--panel-bg)" stroke="var(--text-main)" strokeWidth={1.4} />)}
           {labels.map((lb, i) => (
             <g key={i}>
               <text x={xc(i)} y={H - padB + 22} textAnchor="middle" className="kpi-combo-xlabel">{lb}</text>
