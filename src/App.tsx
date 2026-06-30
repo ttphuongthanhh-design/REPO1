@@ -1264,37 +1264,33 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Team Velocity */}
+              {/* Team Velocity — task/SOW count per week, sourced from Weekly Report logic (by Start Date) */}
               <div className="panel">
-                <h3>Team Velocity <span>tasks completed</span></h3>
+                <h3>Team Velocity <span>task / SOW mỗi tuần</span></h3>
                 <div className="velocity-bar">
                   {(() => {
-                    const today = new Date(); today.setHours(0, 0, 0, 0);
-                    // Monday of the current week (week starts Monday)
-                    const monday = new Date(today);
-                    monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
-                    const weeks = [];
-                    for (let i = 5; i >= 0; i--) {
-                      const start = new Date(monday); start.setDate(monday.getDate() - i * 7);
-                      const end = new Date(start); end.setDate(start.getDate() + 7); // exclusive
-                      const weekOfMonth = Math.ceil(start.getDate() / 7);
-                      const count = tasks.filter(t => {
-                        if (t.col !== 3) return false;
-                        const cd = t.completedAt || t.deadline; // fallback for older data
-                        if (!cd) return false;
-                        const d = new Date(cd); d.setHours(0, 0, 0, 0);
-                        return d >= start && d < end;
-                      }).length;
-                      weeks.push({ label: `W${weekOfMonth}/${start.getMonth() + 1}`, count, isNow: i === 0 });
-                    }
+                    // Bucket every task into its Weekly-Report week (same getWeekInfo scheme, by Start Date)
+                    const buckets = new Map<string, { wi: ReturnType<typeof getWeekInfo>; count: number; scopes: Set<string> }>();
+                    tasks.forEach(t => {
+                      if (!t.start) return;
+                      const wi = getWeekInfo(t.start);
+                      const e = buckets.get(wi.key) || { wi, count: 0, scopes: new Set<string>() };
+                      e.count++; e.scopes.add(t.scope);
+                      buckets.set(wi.key, e);
+                    });
+                    const curKey = getWeekInfo(new Date().toISOString().split('T')[0]).key;
+                    if (!buckets.has(curKey)) { const wi = getWeekInfo(new Date().toISOString().split('T')[0]); buckets.set(curKey, { wi, count: 0, scopes: new Set() }); }
+                    const weeks = [...buckets.values()].sort((a, b) => a.wi.start.getTime() - b.wi.start.getTime()).slice(-6);
                     const max = Math.max(...weeks.map(w => w.count), 1);
+                    if (weeks.length === 0) return <div className="text-[11px] text-muted">Chưa có task nào có Start Date.</div>;
                     return weeks.map((w, i) => {
                       const h = w.count === 0 ? 6 : Math.max(10, Math.round((w.count / max) * 70));
+                      const isNow = w.wi.key === curKey;
                       return (
-                        <div className="vel-col-wrap" key={i}>
+                        <div className="vel-col-wrap" key={w.wi.key} title={`${w.wi.full} · ${w.count} task · ${w.scopes.size} SOW`}>
                           <div className="vel-count">{w.count}</div>
-                          <div className="vel-col" style={{ height: `${h}px`, background: w.isNow ? 'var(--color-primary)' : 'rgba(99, 102, 241, 0.3)' }}></div>
-                          <div className="vel-lbl">{w.label}</div>
+                          <div className="vel-col" style={{ height: `${h}px`, background: isNow ? 'var(--color-primary)' : 'rgba(99, 102, 241, 0.3)' }}></div>
+                          <div className="vel-lbl">{`W${w.wi.weekOfMonth}/${w.wi.start.getMonth() + 1}`}</div>
                         </div>
                       );
                     });
