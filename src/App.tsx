@@ -248,13 +248,30 @@ export default function App() {
     return [];
   });
 
+  // Activity Log retention: keep entries for 3 months; older ones auto-expire.
+  const ACTIVITY_RETENTION_MONTHS = 3;
+  const isWithinRetention = (iso: string) => {
+    if (!iso) return false;
+    const cutoff = new Date();
+    cutoff.setMonth(cutoff.getMonth() - ACTIVITY_RETENTION_MONTHS);
+    return new Date(iso).getTime() >= cutoff.getTime();
+  };
+
   const logActivity = (taskId: number, title: string, type: Activity['type'], detail: string) => {
-    setActivity(prev => [{ at: new Date().toISOString(), taskId, title, type, detail }, ...prev].slice(0, 500));
+    setActivity(prev => [{ at: new Date().toISOString(), taskId, title, type, detail }, ...prev].filter(a => isWithinRetention(a.at)).slice(0, 500));
   };
 
   useEffect(() => {
     try { localStorage.setItem('impact_activity', JSON.stringify(activity)); } catch (e) { console.error(e); }
   }, [activity]);
+
+  // Prune entries older than the retention window on load (covers data restored from storage/server).
+  useEffect(() => {
+    setActivity(prev => {
+      const kept = prev.filter(a => isWithinRetention(a.at));
+      return kept.length === prev.length ? prev : kept;
+    });
+  }, []);
 
   // Task Tracker table sorting
   const [trackerSort, setTrackerSort] = useState<{ field: 'title' | 'assignee' | 'scope' | 'col' | 'pct' | 'deadline' | 'updatedAt'; dir: 'asc' | 'desc' }>({ field: 'updatedAt', dir: 'desc' });
@@ -283,7 +300,7 @@ export default function App() {
           setMembers(data.members.map((m: Member) => ({ ...m, removable: m.id !== LOCKED_MEMBER_ID })));
         }
         if (Array.isArray(data.activity)) {
-          setActivity(data.activity);
+          setActivity(data.activity.filter((a: Activity) => isWithinRetention(a.at)));
         }
       })
       .catch(() => { /* offline: fall back to localStorage data already loaded */ })
@@ -1443,28 +1460,34 @@ export default function App() {
                     </table>
                   </div>
 
-                  {/* Activity Log */}
-                  <div className="activity-section">
-                    <div className="activity-h">
-                      <Clock size={14} /> Activity Log
-                      <span className="activity-sub">Nhật ký mọi thay đổi — theo dõi hành trình task xuyên suốt</span>
-                    </div>
-                    {activity.length === 0 ? (
-                      <div className="tracker-empty">Chưa có hoạt động nào được ghi nhận. Tạo / di chuyển / hoàn thành task để bắt đầu theo dõi.</div>
-                    ) : (
-                      <div className="activity-list">
-                        {activity.slice(0, 60).map((a, i) => (
-                          <div className="activity-item" key={`${a.at}-${i}`}>
-                            <span className="activity-dot" style={{ background: ACT_META[a.type].color }}></span>
-                            <span className="activity-type" style={{ color: ACT_META[a.type].color }}>{ACT_META[a.type].label}</span>
-                            <span className="activity-title">{a.title}</span>
-                            <span className="activity-detail">{a.detail}</span>
-                            <span className="activity-time">{timeAgo(a.at)}</span>
+                  {/* Activity Log — only entries within the last 3 months are kept/shown */}
+                  {(() => {
+                    const recentActivity = activity.filter(a => isWithinRetention(a.at));
+                    return (
+                      <div className="activity-section">
+                        <div className="activity-h">
+                          <Clock size={14} /> Activity Log
+                          <span className="activity-sub">Nhật ký mọi thay đổi — tự động giữ trong 3 tháng gần nhất</span>
+                          <span className="col-cnt ml-auto">{recentActivity.length}</span>
+                        </div>
+                        {recentActivity.length === 0 ? (
+                          <div className="tracker-empty">Chưa có hoạt động nào trong 3 tháng gần nhất. Tạo / di chuyển / hoàn thành task để bắt đầu theo dõi.</div>
+                        ) : (
+                          <div className="activity-list">
+                            {recentActivity.slice(0, 60).map((a, i) => (
+                              <div className="activity-item" key={`${a.at}-${i}`}>
+                                <span className="activity-dot" style={{ background: ACT_META[a.type].color }}></span>
+                                <span className="activity-type" style={{ color: ACT_META[a.type].color }}>{ACT_META[a.type].label}</span>
+                                <span className="activity-title">{a.title}</span>
+                                <span className="activity-detail">{a.detail}</span>
+                                <span className="activity-time">{timeAgo(a.at)}</span>
+                              </div>
+                            ))}
                           </div>
-                        ))}
+                        )}
                       </div>
-                    )}
-                  </div>
+                    );
+                  })()}
                 </>
               );
             })()}
