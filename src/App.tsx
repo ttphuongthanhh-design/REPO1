@@ -407,6 +407,7 @@ export default function App() {
   });
 
   const [draggedTaskId, setDraggedTaskId] = useState<number | null>(null);
+  const [expandedTaskId, setExpandedTaskId] = useState<number | null>(null); // card whose details are open
   const [newSubtypeInput, setNewSubtypeInput] = useState('');
   const [isAddingSubtype, setIsAddingSubtype] = useState(false);
 
@@ -793,76 +794,96 @@ export default function App() {
     }
   };
 
+  // Short date helper for compact cards (dd/mm)
+  const fmtShort = (iso?: string) => iso ? new Date(iso).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) : '';
+
   // Shared task-card renderer used by both the Kanban board and the History Recorded Task box.
-  const renderTaskCard = (task: Task, colIdx: number) => (
-    <div
-      className="task-card animate-fade-in"
-      key={task.id}
-      draggable={isEditMode}
-      onDragStart={() => isEditMode && setDraggedTaskId(task.id)}
-      onDragEnd={() => setDraggedTaskId(null)}
-    >
-      <div className="tc-actions edit-only">
-        <button className="flex items-center gap-1 text-[9px]" onClick={() => handleOpenEditModal(task)}>
-          <Edit2 size={8} /> Edit
-        </button>
-        <button className="btn-r flex items-center gap-1 text-[9px] px-2 py-0.5" onClick={() => handleDeleteTask(task.id)}>
-          <Trash2 size={8} /> Del
-        </button>
-      </div>
+  // Compact by default (Title · Priority · Assignee · Due · Status); click to reveal full details.
+  const renderTaskCard = (task: Task, colIdx: number) => {
+    const expanded = expandedTaskId === task.id;
+    const scopeColor = SCOPE_CONFIGS[task.scope].color;
+    let overdue = false;
+    if (task.deadline && colIdx !== 3 && colIdx !== 4) {
+      const d = new Date(task.deadline); d.setHours(0, 0, 0, 0);
+      const now = new Date(); now.setHours(0, 0, 0, 0);
+      overdue = d < now;
+    }
+    return (
+      <div
+        className={`task-card task-card-v2 ${expanded ? 'expanded' : ''} animate-fade-in`}
+        key={task.id}
+        draggable={isEditMode}
+        onDragStart={() => isEditMode && setDraggedTaskId(task.id)}
+        onDragEnd={() => setDraggedTaskId(null)}
+        style={{ borderLeftColor: scopeColor }}
+        onClick={() => setExpandedTaskId(expanded ? null : task.id)}
+      >
+        <div className="tc-actions edit-only" onClick={e => e.stopPropagation()}>
+          <button className="flex items-center gap-1 text-[9px]" onClick={() => handleOpenEditModal(task)}>
+            <Edit2 size={8} /> Edit
+          </button>
+          <button className="btn-r flex items-center gap-1 text-[9px] px-2 py-0.5" onClick={() => handleDeleteTask(task.id)}>
+            <Trash2 size={8} /> Del
+          </button>
+        </div>
 
-      <div className="mb-2 flex flex-wrap gap-1">
-        <span className={`badge s-${task.scope}`}>{SCOPES[task.scope]}</span>
-        {task.subtype && <span className="text-[10px] text-slate-400 self-center">{task.subtype}</span>}
-      </div>
+        {/* Row 1: title + priority */}
+        <div className="tc-top">
+          <span className="tc-title font-semibold">{task.title}</span>
+          <span className={`pri-badge pri-${task.priority}`}>{task.priority}</span>
+        </div>
 
-      <div className="tc-title font-semibold">{task.title}</div>
+        {/* Row 2: assignee + due date */}
+        <div className="tc-row2">
+          <span className="av-tag">
+            <span className="av" style={{ background: memberColor(task.assignee), color: '#fff' }}>{memberInitial(task.assignee)}</span>
+            {memberName(task.assignee)}
+          </span>
+          {task.deadline && (
+            <span className={`tc-due ${overdue ? 'overdue' : ''}`}>
+              <Calendar size={10} /> {fmtShort(task.deadline)}{overdue ? ' ⚠' : ''}
+            </span>
+          )}
+        </div>
 
-      <div className="tc-meta">
-        <span className={`badge ${PRIORITY_BADGES[task.priority]}`}>{task.priority}</span>
-        <span className="av-tag">
-          <span className="av" style={{ background: memberColor(task.assignee), color: '#fff' }}>{memberInitial(task.assignee)}</span>
-          {memberName(task.assignee)}
-        </span>
-      </div>
+        {/* Row 3: status + progress + expand toggle */}
+        <div className="tc-row3">
+          <span className="stage-badge" style={{ background: `${COL_COLORS[colIdx]}22`, color: COL_COLORS[colIdx], borderColor: `${COL_COLORS[colIdx]}55` }}>
+            {COLS[colIdx]}
+          </span>
+          {colIdx !== 4 && <span className="tc-mini-pct">{task.pct}%</span>}
+          <button className="tc-expand-btn" onClick={e => { e.stopPropagation(); setExpandedTaskId(expanded ? null : task.id); }} title={expanded ? 'Thu gọn' : 'Xem chi tiết'}>
+            {expanded ? '▲' : '▼'}
+          </button>
+        </div>
 
-      {colIdx !== 4 ? (
-        <div className="tc-pct">
-          <div className="pct-bar">
-            <div className="pct-fill" style={{ width: `${task.pct}%` }}></div>
+        {/* Expanded details */}
+        {expanded && (
+          <div className="tc-details" onClick={e => e.stopPropagation()}>
+            <div className="tcd-row"><span className="tcd-k">Scope</span><span className={`badge s-${task.scope}`}>{SCOPES[task.scope]}</span></div>
+            {task.subtype && <div className="tcd-row"><span className="tcd-k">Sub-type</span><span>{task.subtype}</span></div>}
+            {colIdx !== 4 && (
+              <div className="tc-pct">
+                <div className="pct-bar"><div className="pct-fill" style={{ width: `${task.pct}%` }}></div></div>
+                <span className="pct-lbl font-semibold text-slate-400">{task.pct}%</span>
+              </div>
+            )}
+            <div className="tcd-row"><span className="tcd-k">Bắt đầu</span><span>{task.start || '—'}</span></div>
+            <div className="tcd-row"><span className="tcd-k">Deadline</span><span className={overdue ? 'tt-overdue' : ''}>{task.deadline || '—'}</span></div>
+            {colIdx === 3 && task.completedAt && <div className="tcd-row"><span className="tcd-k">Hoàn thành</span><span className="tc-done-date">✓ {new Date(task.completedAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span></div>}
+            {task.link && (
+              <a className="tc-link" href={task.link} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>
+                <LinkIcon size={10} />
+                <span className="tc-link-text">{task.link.replace(/^https?:\/\/(www\.)?/, '')}</span>
+              </a>
+            )}
+            {task.desc && <div className="tcd-desc">{task.desc}</div>}
+            {task.note && <div className="tcd-note">"{task.note}"</div>}
           </div>
-          <span className="pct-lbl font-semibold text-slate-400">{task.pct}%</span>
-        </div>
-      ) : (
-        <div className="text-[10px] text-rose-500 font-bold mt-2">✕ Failed / Rejected</div>
-      )}
-
-      {colIdx === 3 && (
-        <div className="tc-done-date">✓ Done {(task.completedAt || task.deadline) ? `· ${new Date(task.completedAt || task.deadline).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}` : ''}</div>
-      )}
-
-      {getDeadlineBadge(task.deadline, colIdx)}
-
-      {task.link && (
-        <a
-          className="tc-link"
-          href={task.link}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={e => e.stopPropagation()}
-        >
-          <LinkIcon size={10} />
-          <span className="tc-link-text">{task.link.replace(/^https?:\/\/(www\.)?/, '')}</span>
-        </a>
-      )}
-
-      {task.note && (
-        <div className="text-[10px] text-slate-400 mt-2 bg-slate-950/40 p-2 rounded border-l-2 border-indigo-500 italic">
-          "{task.note}"
-        </div>
-      )}
-    </div>
-  );
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className={`min-h-screen pb-12 ${isEditMode ? '' : 'read-only'}`}>
