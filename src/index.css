@@ -2714,3 +2714,22 @@ html:not(.dark) .add-btn.hover\:text-white:hover { color: var(--text-main) !impo
 .kpi-combo-toggle button:hover, .kpi-combo-years button:hover { color: var(--text-main); transform: none; background: transparent; }
 .kpi-combo-toggle button.active, .kpi-combo-years button.active { background: var(--color-primary); color: #fff; }
 .kpi-combo-hint { font-style: italic; margin-left: auto; }
+
+/* Weekly Revenue KPI — current-year summary + month trend */
+.kpi-live-badge { background: var(--color-primary-glow); color: var(--color-primary); font-size: 11px; font-weight: 800; padding: 4px 12px; border-radius: 16px; text-transform: none; letter-spacing: 0; }
+.kpi-live-summary { display: grid; grid-template-columns: repeat(3, auto) 1fr; align-items: center; gap: 24px; margin: 4px 0 8px; }
+.kls-item { display: flex; flex-direction: column; gap: 2px; }
+.kls-lbl { font-size: 11px; font-weight: 600; color: var(--text-muted); }
+.kls-val { font-size: 22px; font-weight: 800; color: var(--text-main); letter-spacing: -0.3px; }
+.kls-val.up { color: var(--color-success); } .kls-val.mid { color: var(--color-warning); } .kls-val.down { color: var(--color-danger); }
+.kls-track { height: 10px; border-radius: 8px; background: var(--bg-secondary); border: 1px solid var(--panel-border); overflow: hidden; }
+.kls-fill { height: 100%; border-radius: 8px; transition: width 0.5s; }
+.kls-fill.up { background: linear-gradient(90deg, #10b981, #34d399); }
+.kls-fill.mid { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+.kls-fill.down { background: linear-gradient(90deg, #ef4444, #f87171); }
+.kpi-live-monthh { font-size: 12px; font-weight: 700; color: var(--text-muted); margin: 14px 0 4px; padding-top: 14px; border-top: 1px solid var(--panel-border); }
+@media (max-width: 768px) {
+  .kpi-live-summary { grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .kls-track { grid-column: 1 / -1; }
+  .kls-val { font-size: 18px; }
+}

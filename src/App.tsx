@@ -172,6 +172,8 @@ interface KpiData {
   years: Record<string, KpiYear>; // data per planning year (2026/2027/2028…)
 }
 const KPI_YEARS = ['2026', '2027', '2028'];
+// 7 monochrome indigo tones (dark → light) to distinguish channels on stacked columns
+const CH_TONES = ['#312e81', '#3730a3', '#4338ca', '#4f46e5', '#6366f1', '#818cf8', '#a5b4fc'];
 const BASE_KPI_CHANNELS: KpiChannel[] = [
   { id: 1, channel: 'University',      allocation: 20, priority: 'High',   notes: 'Back-to-school & exam seasons drive H2 demand', characteristics: 'Seasonal, term-driven; strong H2 ramp', curve: [0.20, 0.22, 0.28, 0.30] },
   { id: 2, channel: 'Fast Food',       allocation: 18, priority: 'High',   notes: 'Stable year-round footfall',                   characteristics: 'High frequency, low seasonality',     curve: [0.25, 0.25, 0.25, 0.25] },
@@ -1010,8 +1012,8 @@ export default function App() {
   };
 
   // Reusable, calm 2-tone combo chart (Target columns + Actual line)
-  const comboChart = (opts: { labels: string[]; targets: number[]; actuals: number[]; tip?: (i: number) => React.ReactNode }) => {
-    const { labels, targets, actuals, tip } = opts;
+  const comboChart = (opts: { labels: string[]; targets: number[]; actuals: number[]; stacks?: { value: number; color: string }[][]; tip?: (i: number) => React.ReactNode }) => {
+    const { labels, targets, actuals, stacks, tip } = opts;
     const fmt = (n: number) => n >= 1e9 ? (n / 1e9).toFixed(n % 1e9 === 0 ? 0 : 1) + ' tỷ' : n >= 1e6 ? (n / 1e6).toFixed(0) + ' tr' : new Intl.NumberFormat('vi-VN').format(Math.round(n || 0));
     const vnd = (n: number) => new Intl.NumberFormat('vi-VN').format(Math.round(n || 0)) + ' ₫';
     const n = labels.length;
@@ -1043,9 +1045,22 @@ export default function App() {
           {kpiHoverYear != null && kpiHoverYear < n && (
             <rect x={padL + bandW * kpiHoverYear} y={padT} width={bandW} height={plotH} fill="var(--color-primary)" opacity={0.07} />
           )}
-          {targets.map((v, i) => (
-            <rect key={i} x={xc(i) - colW / 2} y={yfn(v)} width={colW} height={Math.max(0, plotH - (yfn(v) - padT))} fill="url(#kpiBar)" rx={3} />
-          ))}
+          {targets.map((v, i) => {
+            if (stacks && stacks[i] && stacks[i].length) {
+              let cum = 0;
+              return (
+                <g key={i}>
+                  {stacks[i].map((seg, j) => {
+                    const yTop = yfn(cum + seg.value);
+                    const h = (seg.value / yMax) * plotH;
+                    cum += seg.value;
+                    return <rect key={j} x={xc(i) - colW / 2} y={yTop} width={colW} height={Math.max(0, h)} fill={seg.color} rx={j === stacks[i].length - 1 ? 3 : 0}><title>{labels[i]}</title></rect>;
+                  })}
+                </g>
+              );
+            }
+            return <rect key={i} x={xc(i) - colW / 2} y={yfn(v)} width={colW} height={Math.max(0, plotH - (yfn(v) - padT))} fill="url(#kpiBar)" rx={3} />;
+          })}
           <polyline points={linePts} fill="none" stroke="var(--text-main)" strokeWidth={2.5} className="kpi-combo-line" />
           {actuals.map((v, i) => <circle key={i} cx={xc(i)} cy={yfn(v)} r={4} fill="var(--panel-bg)" stroke="var(--text-main)" strokeWidth={2.5} />)}
           {labels.map((lb, i) => (
@@ -1188,10 +1203,11 @@ export default function App() {
                   {comboView === 'year'
                     ? comboChart({
                         labels: KPI_YEARS, targets: yData.map(d => d.target), actuals: yData.map(d => d.actual),
+                        stacks: yData.map(d => d.channels.map((c, j) => ({ value: d.totalTarget * (c.allocation || 0) / 100, color: CH_TONES[j % CH_TONES.length] }))),
                         tip: (i) => (
                           <div className="kpi-tip-rows">
                             {yData[i].channels.map((c, j) => (
-                              <div className="kpi-tip-row" key={j}><span className="kpi-tip-dot" style={{ background: 'var(--color-primary)' }}></span>{c.channel}<b>{fmtC(yData[i].totalTarget * (c.allocation || 0) / 100)}</b></div>
+                              <div className="kpi-tip-row" key={j}><span className="kpi-tip-dot" style={{ background: CH_TONES[j % CH_TONES.length] }}></span>{c.channel}<b>{fmtC(yData[i].totalTarget * (c.allocation || 0) / 100)}</b></div>
                             ))}
                             <div className="kpi-tip-sep"></div>
                           </div>
@@ -1199,9 +1215,12 @@ export default function App() {
                       })
                     : comboChart({ labels: monthLbls, targets: monthTargets, actuals: monthActuals })}
                   <div className="kpi-combo-legend">
-                    <span className="kpi-combo-lg"><i style={{ background: '#6366f1' }}></i>Target Revenue</span>
+                    {comboView === 'year'
+                      ? (kpis.years[KPI_YEARS[0]]?.channels || []).map((c, j) => (
+                          <span className="kpi-combo-lg" key={c.id}><i style={{ background: CH_TONES[j % CH_TONES.length] }}></i>{c.channel}</span>
+                        ))
+                      : <span className="kpi-combo-lg"><i style={{ background: '#6366f1' }}></i>Target Revenue</span>}
                     <span className="kpi-combo-lg"><i className="lg-line"></i>Actual Revenue</span>
-                    <span className="kpi-combo-hint">{comboView === 'year' ? 'So sánh 3 năm · rê chuột để xem chi tiết kênh' : `Biến động 12 tháng năm ${dashYear} · live từ Target KPIs`}</span>
                   </div>
                 </div>
               );
@@ -2362,44 +2381,36 @@ export default function App() {
                 </div>
               )}
 
-              {/* Live Artifact — Revenue KPI Target vs Actual by year (pulled live from Target KPIs) */}
+              {/* Revenue KPI — current (realtime) year + 12-month trend, live from Target KPIs */}
               {(() => {
                 const fmt = (n: number) => n >= 1e9 ? (n / 1e9).toFixed(n % 1e9 === 0 ? 0 : 1) + ' tỷ' : n >= 1e6 ? (n / 1e6).toFixed(0) + ' tr' : new Intl.NumberFormat('vi-VN').format(Math.round(n || 0));
-                const yearStats = KPI_YEARS.map(y => {
-                  const yd = kpis.years[y];
-                  const target = yd ? yd.channels.reduce((s, c) => s + yd.totalTarget * (c.allocation || 0) / 100, 0) : 0;
-                  const actual = yd ? yd.channels.reduce((s, c) => s + (c.actual ? c.actual.reduce((a, b) => a + (b || 0), 0) : 0), 0) : 0;
-                  return { y, target, actual };
-                });
-                const totalT = yearStats.reduce((s, r) => s + r.target, 0);
-                const totalA = yearStats.reduce((s, r) => s + r.actual, 0);
-                const overallPct = totalT > 0 ? Math.round(totalA / totalT * 100) : 0;
+                const curY = String(new Date().getFullYear());
+                const year = kpis.years[curY] ? curY : (KPI_YEARS.find(y => kpis.years[y]) || KPI_YEARS[0]);
+                const yd = kpis.years[year];
+                const target = yd ? yd.channels.reduce((s, c) => s + (yd.totalTarget || 0) * (c.allocation || 0) / 100, 0) : 0;
+                const actual = yd ? yd.channels.reduce((s, c) => s + (c.actual ? c.actual.reduce((a, b) => a + (b || 0), 0) : 0), 0) : 0;
+                const pct = target > 0 ? Math.round(actual / target * 100) : 0;
+                const cls = pct >= 100 ? 'up' : pct >= 70 ? 'mid' : 'down';
+                const monthTargets = Array.from({ length: 12 }, (_, m) => (yd?.channels || []).reduce((s, c) => s + (yd!.totalTarget || 0) * (c.allocation || 0) / 100 * c.curve[Math.floor(m / 3)] / 3, 0));
+                const monthActuals = Array.from({ length: 12 }, (_, m) => (yd?.channels || []).reduce((s, c) => s + ((c.actual && c.actual[m]) || 0), 0));
+                const monthLbls = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'];
                 return (
                   <div className="panel kpi-live mt-4">
                     <h3>
                       <span>Revenue KPI · Target vs Actual</span>
-                      <span>Live từ tab Target KPIs · {fmt(totalA)} / {fmt(totalT)} ({overallPct}%)</span>
+                      <span className="kpi-live-badge">Năm {year} · realtime</span>
                     </h3>
-                    <div className="kpi-live-list">
-                      {yearStats.map(s => {
-                        const pct = s.target > 0 ? Math.round(s.actual / s.target * 100) : 0;
-                        const cls = pct >= 100 ? 'up' : pct >= 70 ? 'mid' : 'down';
-                        return (
-                          <div className="kpi-live-row" key={s.y}>
-                            <div className="kpi-live-year">{s.y}</div>
-                            <div className="kpi-live-main">
-                              <div className="kpi-live-track">
-                                <div className={`kpi-live-fill ${cls}`} style={{ width: `${Math.min(100, s.target > 0 ? s.actual / s.target * 100 : 0)}%` }}></div>
-                              </div>
-                              <div className="kpi-live-vals">
-                                <span className="kpi-live-target">🎯 Target: <b>{fmt(s.target)}</b></span>
-                                <span className="kpi-live-actual">📈 Actual: <b>{fmt(s.actual)}</b></span>
-                                <span className={`kpi-live-pct ${cls}`}>{pct}%</span>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
+                    <div className="kpi-live-summary">
+                      <div className="kls-item"><div className="kls-lbl">🎯 Target</div><div className="kls-val">{fmt(target)}</div></div>
+                      <div className="kls-item"><div className="kls-lbl">📈 Actual</div><div className="kls-val">{fmt(actual)}</div></div>
+                      <div className="kls-item"><div className="kls-lbl">Đạt KPI</div><div className={`kls-val ${cls}`}>{pct}%</div></div>
+                      <div className="kls-track"><div className={`kls-fill ${cls}`} style={{ width: `${Math.min(100, pct)}%` }}></div></div>
+                    </div>
+                    <div className="kpi-live-monthh">Biến động doanh thu theo 12 tháng — {year}</div>
+                    {comboChart({ labels: monthLbls, targets: monthTargets, actuals: monthActuals })}
+                    <div className="kpi-combo-legend">
+                      <span className="kpi-combo-lg"><i style={{ background: '#6366f1' }}></i>Target Revenue</span>
+                      <span className="kpi-combo-lg"><i className="lg-line"></i>Actual Revenue</span>
                     </div>
                   </div>
                 );
