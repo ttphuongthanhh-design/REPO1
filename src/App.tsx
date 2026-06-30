@@ -164,21 +164,36 @@ interface KpiChannel {
   curve: [number, number, number, number]; // fixed seasonal split across Q1..Q4 (sums to 1)
   actual?: number[];             // 12 monthly actual-KPI figures (user-editable)
 }
-interface KpiData {
+interface KpiYear {
   totalTarget: number;           // total annual target in VND (user-editable, prominent)
   channels: KpiChannel[];
 }
+interface KpiData {
+  years: Record<string, KpiYear>; // data per planning year (2026/2027/2028…)
+}
+const KPI_YEARS = ['2026', '2027', '2028'];
+const BASE_KPI_CHANNELS: KpiChannel[] = [
+  { id: 1, channel: 'University',      allocation: 20, priority: 'High',   notes: 'Back-to-school & exam seasons drive H2 demand', characteristics: 'Seasonal, term-driven; strong H2 ramp', curve: [0.20, 0.22, 0.28, 0.30] },
+  { id: 2, channel: 'Fast Food',       allocation: 18, priority: 'High',   notes: 'Stable year-round footfall',                   characteristics: 'High frequency, low seasonality',     curve: [0.25, 0.25, 0.25, 0.25] },
+  { id: 3, channel: 'Coffee Shop',     allocation: 16, priority: 'Medium', notes: 'Front-loaded; cools toward year-end',          characteristics: 'Front-loaded; H1 heavy',              curve: [0.28, 0.26, 0.24, 0.22] },
+  { id: 4, channel: 'Salon',           allocation: 12, priority: 'Medium', notes: 'Gradual ramp toward festive season',           characteristics: 'Steady ramp; festive uplift',         curve: [0.22, 0.24, 0.26, 0.28] },
+  { id: 5, channel: 'Building',        allocation: 14, priority: 'Low',    notes: 'Project-based; concentrated early in year',    characteristics: 'Project-based; H1 concentrated',      curve: [0.30, 0.28, 0.22, 0.20] },
+  { id: 6, channel: 'Apartment',       allocation: 12, priority: 'Medium', notes: 'Even spread, slight H2 lift',                  characteristics: 'Residential; balanced demand',        curve: [0.24, 0.24, 0.26, 0.26] },
+  { id: 7, channel: 'Hotel & Resort',  allocation: 8,  priority: 'High',   notes: 'Peaks mid-year (summer travel)',               characteristics: 'Tourism-led; mid-year peak',          curve: [0.20, 0.30, 0.30, 0.20] },
+];
+const mkKpiYear = (target: number): KpiYear => ({ totalTarget: target, channels: BASE_KPI_CHANNELS.map(c => ({ ...c })) });
 const DEFAULT_KPIS: KpiData = {
-  totalTarget: 50_000_000_000, // 50 tỷ VND
-  channels: [
-    { id: 1, channel: 'University',      allocation: 20, priority: 'High',   notes: 'Back-to-school & exam seasons drive H2 demand', characteristics: 'Seasonal, term-driven; strong H2 ramp', curve: [0.20, 0.22, 0.28, 0.30] },
-    { id: 2, channel: 'Fast Food',       allocation: 18, priority: 'High',   notes: 'Stable year-round footfall',                   characteristics: 'High frequency, low seasonality',     curve: [0.25, 0.25, 0.25, 0.25] },
-    { id: 3, channel: 'Coffee Shop',     allocation: 16, priority: 'Medium', notes: 'Front-loaded; cools toward year-end',          characteristics: 'Front-loaded; H1 heavy',              curve: [0.28, 0.26, 0.24, 0.22] },
-    { id: 4, channel: 'Salon',           allocation: 12, priority: 'Medium', notes: 'Gradual ramp toward festive season',           characteristics: 'Steady ramp; festive uplift',         curve: [0.22, 0.24, 0.26, 0.28] },
-    { id: 5, channel: 'Building',        allocation: 14, priority: 'Low',    notes: 'Project-based; concentrated early in year',    characteristics: 'Project-based; H1 concentrated',      curve: [0.30, 0.28, 0.22, 0.20] },
-    { id: 6, channel: 'Apartment',       allocation: 12, priority: 'Medium', notes: 'Even spread, slight H2 lift',                  characteristics: 'Residential; balanced demand',        curve: [0.24, 0.24, 0.26, 0.26] },
-    { id: 7, channel: 'Hotel & Resort',  allocation: 8,  priority: 'High',   notes: 'Peaks mid-year (summer travel)',               characteristics: 'Tourism-led; mid-year peak',          curve: [0.20, 0.30, 0.30, 0.20] },
-  ],
+  years: { '2026': mkKpiYear(50_000_000_000), '2027': mkKpiYear(57_500_000_000), '2028': mkKpiYear(66_000_000_000) },
+};
+// Accept both the new per-year shape and the legacy { totalTarget, channels } shape.
+const migrateKpis = (raw: any): KpiData => {
+  if (raw && raw.years && typeof raw.years === 'object') return raw;
+  if (raw && Array.isArray(raw.channels)) {
+    const base = raw.channels;
+    const t = raw.totalTarget || 50_000_000_000;
+    return { years: { '2026': { totalTarget: t, channels: base }, '2027': mkKpiYear(Math.round(t * 1.15)), '2028': mkKpiYear(Math.round(t * 1.32)) } };
+  }
+  return DEFAULT_KPIS;
 };
 
 // --- Security: simple obfuscating hash + baked default edit password ---
@@ -301,13 +316,14 @@ export default function App() {
     });
   }, []);
 
-  // --- Target KPIs (annual revenue planning) ---
+  // --- Target KPIs (annual revenue planning, per year) ---
   const [kpis, setKpis] = useState<KpiData>(() => {
     try {
       const saved = localStorage.getItem('impact_kpis');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed && Array.isArray(parsed.channels) && parsed.channels.length > 0) return parsed;
+        const m = migrateKpis(parsed);
+        if (m && m.years && Object.keys(m.years).length > 0) return m;
       }
     } catch (e) {
       console.error(e);
@@ -317,25 +333,43 @@ export default function App() {
   useEffect(() => {
     try { localStorage.setItem('impact_kpis', JSON.stringify(kpis)); } catch (e) { console.error(e); }
   }, [kpis]);
+  const [kpiYear, setKpiYear] = useState<string>(KPI_YEARS[0]);
+  // Channel filter (which distribution channels are shown), shared by both sections
+  const [kpiChannelFilter, setKpiChannelFilter] = useState<number[] | null>(null); // null = all
+  const [kpiChanMenuOpen, setKpiChanMenuOpen] = useState(false);
+  const kpiYearData: KpiYear = kpis.years[kpiYear] || kpis.years[KPI_YEARS[0]] || Object.values(kpis.years)[0];
+
   const updateKpiChannel = (id: number, field: keyof KpiChannel, value: any) => {
     if (!isEditMode) return;
-    setKpis(prev => ({ ...prev, channels: prev.channels.map(c => c.id === id ? { ...c, [field]: field === 'allocation' ? Math.max(0, +value || 0) : value } : c) }));
+    setKpis(prev => {
+      const yd = prev.years[kpiYear];
+      if (!yd) return prev;
+      return { ...prev, years: { ...prev.years, [kpiYear]: { ...yd, channels: yd.channels.map(c => c.id === id ? { ...c, [field]: field === 'allocation' ? Math.max(0, +value || 0) : value } : c) } } };
+    });
+  };
+  const updateKpiTotal = (value: any) => {
+    if (!isEditMode) return;
+    setKpis(prev => {
+      const yd = prev.years[kpiYear];
+      if (!yd) return prev;
+      return { ...prev, years: { ...prev.years, [kpiYear]: { ...yd, totalTarget: Math.max(0, +value || 0) } } };
+    });
   };
   const updateKpiActual = (id: number, monthIdx: number, value: any) => {
     if (!isEditMode) return;
-    setKpis(prev => ({
-      ...prev,
-      channels: prev.channels.map(c => {
+    setKpis(prev => {
+      const yd = prev.years[kpiYear];
+      if (!yd) return prev;
+      return { ...prev, years: { ...prev.years, [kpiYear]: { ...yd, channels: yd.channels.map(c => {
         if (c.id !== id) return c;
         const actual = Array.from({ length: 12 }, (_, i) => (c.actual && c.actual[i]) || 0);
         actual[monthIdx] = Math.max(0, +value || 0);
         return { ...c, actual };
-      }),
-    }));
+      }) } } };
+    });
   };
-  // Monthly Target Allocation table — sort & filter
+  // Monthly Target Allocation table — sort
   const [kpiMonthSort, setKpiMonthSort] = useState<{ col: 'name' | 'total' | number; dir: 'asc' | 'desc' }>({ col: 'total', dir: 'desc' });
-  const [kpiMonthFilter, setKpiMonthFilter] = useState<'all' | 'High' | 'Medium' | 'Low'>('all');
   const toggleKpiMonthSort = (col: 'name' | 'total' | number) => {
     setKpiMonthSort(prev => prev.col === col ? { col, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { col, dir: typeof col === 'string' && col === 'name' ? 'asc' : 'desc' });
   };
@@ -369,8 +403,8 @@ export default function App() {
         if (Array.isArray(data.activity)) {
           setActivity(data.activity.filter((a: Activity) => isWithinRetention(a.at)));
         }
-        if (data.kpis && Array.isArray(data.kpis.channels) && data.kpis.channels.length > 0) {
-          setKpis(data.kpis);
+        if (data.kpis && (data.kpis.years || Array.isArray(data.kpis.channels))) {
+          setKpis(migrateKpis(data.kpis));
         }
       })
       .catch(() => { /* offline: fall back to localStorage data already loaded */ })
@@ -1575,54 +1609,78 @@ export default function App() {
                 if (n >= 1e6) return (n / 1e6).toFixed(0) + ' tr';
                 return vnd(n);
               };
-              const total = kpis.totalTarget || 0;
-              const rows = kpis.channels.map(c => {
+              const total = kpiYearData.totalTarget || 0;
+              const allChannels = kpiYearData.channels;
+              const visibleChannels = allChannels.filter(c => !kpiChannelFilter || kpiChannelFilter.includes(c.id));
+              const rows = visibleChannels.map(c => {
                 const annual = total * (c.allocation || 0) / 100;
                 const q = c.curve.map(w => annual * w) as number[];
-                const h1 = q[0] + q[1];
-                const growth = h1 > 0 ? (q[2] + q[3]) / h1 : 0;
-                return { c, annual, q, growth };
+                return { c, annual, q };
               });
-              const allocSum = kpis.channels.reduce((s, c) => s + (c.allocation || 0), 0);
+              const allocSum = visibleChannels.reduce((s, c) => s + (c.allocation || 0), 0);
               const sum = (f: (r: typeof rows[number]) => number) => rows.reduce((s, r) => s + f(r), 0);
               const tQ = [0, 1, 2, 3].map(i => sum(r => r.q[i]));
               const priCls = (p: string) => p === 'High' ? 'kpi-pri-high' : p === 'Medium' ? 'kpi-pri-med' : 'kpi-pri-low';
-              const growthCls = (g: number) => g > 1.0001 ? 'kpi-grow-up' : g < 0.9999 ? 'kpi-grow-down' : 'kpi-grow-flat';
+              const allIds = allChannels.map(c => c.id);
+              const selIds = kpiChannelFilter ?? allIds;
+              const toggleChan = (id: number) => {
+                const cur = kpiChannelFilter ?? allIds;
+                const next = cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id];
+                setKpiChannelFilter(next.length === allIds.length ? null : next);
+              };
 
               return (
                 <div className="kpi-wrap">
                   {/* Executive title bar */}
                   <div className="kpi-titlebar">
-                    <div>
-                      <div className="kpi-title">Annual Revenue Planning · Distribution Channels</div>
-                      <div className="kpi-subtitle">Executive plan — formula-driven. Edit only Allocation %, Total Target, Priority &amp; Notes; everything else updates automatically.</div>
+                    <div className="kpi-yearsel">
+                      <span className="kpi-year-lbl">Năm kế hoạch</span>
+                      <div className="kpi-year-btns">
+                        {KPI_YEARS.map(y => (
+                          <button key={y} className={`kpi-year-btn ${kpiYear === y ? 'active' : ''}`} onClick={() => setKpiYear(y)}>{y}</button>
+                        ))}
+                      </div>
                     </div>
                     <div className="kpi-total-box">
-                      <div className="kpi-total-lbl">Total Annual Target (VND)</div>
+                      <div className="kpi-total-lbl">Total Annual Target (VND) · {kpiYear}</div>
                       {isEditMode ? (
                         <input
-                          type="number"
+                          type="text"
+                          inputMode="numeric"
                           className="kpi-total-input"
-                          value={kpis.totalTarget}
-                          onChange={e => setKpis(prev => ({ ...prev, totalTarget: Math.max(0, +e.target.value || 0) }))}
+                          value={vnd(total)}
+                          onChange={e => updateKpiTotal(e.target.value.replace(/[^\d]/g, ''))}
                         />
                       ) : (
                         <div className="kpi-total-val">{vnd(total)} ₫</div>
                       )}
-                      <div className="kpi-total-sub">{compact(total)} · {rows.length} channels</div>
+                      <div className="kpi-total-sub">{compact(total)} · {kpiYear}</div>
                     </div>
                   </div>
 
-                  {/* Strategy note + allocation guideline */}
-                  <div className="kpi-guideline">
-                    <span className={`kpi-alloc-chip ${Math.round(allocSum) === 100 ? 'ok' : 'warn'}`}>
-                      Allocation total: {allocSum.toFixed(1)}% {Math.round(allocSum) === 100 ? '✓' : '⚠ phải = 100%'}
-                    </span>
-                    <span className="kpi-strategy">Strategy: prioritise High-priority channels for H2 ramp; quarterly &amp; monthly targets are derived from each channel's seasonal curve.</span>
+                  {/* SECTION 1 header with channel filter */}
+                  <div className="kpi-section-bar">
+                    <div className="kpi-section-h2">Section 1 — Phân bổ kế hoạch doanh thu theo quý</div>
+                    <div className="kpi-chan-filter">
+                      <button className="kpi-chan-btn" onClick={() => setKpiChanMenuOpen(o => !o)}>
+                        Kênh: {kpiChannelFilter ? `${selIds.length}/${allIds.length}` : `Tất cả (${allIds.length})`} ▾
+                      </button>
+                      {kpiChanMenuOpen && (
+                        <>
+                          <div className="kpi-menu-backdrop" onClick={() => setKpiChanMenuOpen(false)}></div>
+                          <div className="kpi-chan-menu">
+                            <button className="kpi-chan-all" onClick={() => setKpiChannelFilter(null)}>Chọn tất cả</button>
+                            {allChannels.map(c => (
+                              <label key={c.id} className="kpi-chan-item">
+                                <input type="checkbox" checked={selIds.includes(c.id)} onChange={() => toggleChan(c.id)} />
+                                <span>{c.channel}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </div>
-
-                  {/* SECTION 1 */}
-                  <div className="kpi-section-h">Section 1 — Phân bổ kế hoạch doanh thu theo quý</div>
                   <div className="kpi-table-wrap">
                     <table className="kpi-table">
                       <thead>
@@ -1663,6 +1721,9 @@ export default function App() {
                             </td>
                           </tr>
                         ))}
+                        {rows.length === 0 && (
+                          <tr><td className="kpi-sticky-col" colSpan={9} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Chưa chọn kênh nào — mở bộ lọc "Kênh" để hiển thị.</td></tr>
+                        )}
                         <tr className="kpi-total-row">
                           <td className="kpi-sticky-col">TOTAL</td>
                           <td className="kpi-num">{allocSum.toFixed(1)}%</td>
@@ -1684,7 +1745,6 @@ export default function App() {
                       a: Array.from({ length: 12 }, (_, i) => (r.c.actual && r.c.actual[i]) || 0),
                       total: r.annual,
                     }));
-                    if (kpiMonthFilter !== 'all') mRows = mRows.filter(r => r.c.priority === kpiMonthFilter);
                     const dir = kpiMonthSort.dir === 'asc' ? 1 : -1;
                     mRows = [...mRows].sort((a, b) => {
                       if (kpiMonthSort.col === 'name') return a.c.channel.localeCompare(b.c.channel) * dir;
@@ -1702,15 +1762,7 @@ export default function App() {
                     return (
                       <>
                         <div className="kpi-section-bar">
-                          <div className="kpi-section-h2">PHÂN BỔ MỤC TIÊU THEO THÁNG · TARGET vs ACTUAL</div>
-                          <div className="kpi-filter">
-                            <span className="kpi-filter-lbl">Lọc hạng mục:</span>
-                            {(['all', 'High', 'Medium', 'Low'] as const).map(f => (
-                              <button key={f} className={`kpi-fbtn ${kpiMonthFilter === f ? 'active' : ''}`} onClick={() => setKpiMonthFilter(f)}>
-                                {f === 'all' ? 'Tất cả' : f}
-                              </button>
-                            ))}
-                          </div>
+                          <div className="kpi-section-h2">PHÂN BỔ MỤC TIÊU THEO THÁNG · TARGET vs ACTUAL · {kpiYear}</div>
                         </div>
                         <div className="kpi-table-wrap">
                           <table className="kpi-table kpi-month-table">
