@@ -338,6 +338,8 @@ export default function App() {
   const [kpiChannelFilter, setKpiChannelFilter] = useState<number[] | null>(null); // null = all
   const [kpiChanMenuOpen, setKpiChanMenuOpen] = useState(false);
   const [kpiHoverYear, setKpiHoverYear] = useState<number | null>(null); // combo-chart tooltip
+  const [comboView, setComboView] = useState<'year' | 'month'>('year');
+  const [dashYear, setDashYear] = useState<string>(KPI_YEARS[0]);
   const kpiYearData: KpiYear = kpis.years[kpiYear] || kpis.years[KPI_YEARS[0]] || Object.values(kpis.years)[0];
 
   const updateKpiChannel = (id: number, field: keyof KpiChannel, value: any) => {
@@ -1007,6 +1009,65 @@ export default function App() {
     );
   };
 
+  // Reusable, calm 2-tone combo chart (Target columns + Actual line)
+  const comboChart = (opts: { labels: string[]; targets: number[]; actuals: number[]; tip?: (i: number) => React.ReactNode }) => {
+    const { labels, targets, actuals, tip } = opts;
+    const fmt = (n: number) => n >= 1e9 ? (n / 1e9).toFixed(n % 1e9 === 0 ? 0 : 1) + ' tỷ' : n >= 1e6 ? (n / 1e6).toFixed(0) + ' tr' : new Intl.NumberFormat('vi-VN').format(Math.round(n || 0));
+    const vnd = (n: number) => new Intl.NumberFormat('vi-VN').format(Math.round(n || 0)) + ' ₫';
+    const n = labels.length;
+    const rawMax = Math.max(1, ...targets, ...actuals);
+    const pow = Math.pow(10, Math.floor(Math.log10(rawMax)));
+    const yMax = Math.ceil(rawMax / pow) * pow || 1;
+    const W = 720, H = 250, padL = 60, padR = 16, padT = 14, padB = 34;
+    const plotW = W - padL - padR, plotH = H - padT - padB;
+    const bandW = plotW / n;
+    const colW = Math.max(10, Math.min(46, bandW * (n > 6 ? 0.5 : 0.34)));
+    const yfn = (v: number) => padT + plotH - (v / yMax) * plotH;
+    const xc = (i: number) => padL + bandW * i + bandW / 2;
+    const linePts = actuals.map((v, i) => `${xc(i)},${yfn(v)}`).join(' ');
+    const ticks = [0, 1, 2, 3].map(k => yMax * k / 3);
+    return (
+      <div className="kpi-combo-wrap">
+        <svg className="kpi-combo-svg" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" onMouseLeave={() => setKpiHoverYear(null)}>
+          <defs>
+            <linearGradient id="kpiBar" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#818cf8" /><stop offset="100%" stopColor="#6366f1" />
+            </linearGradient>
+          </defs>
+          {ticks.map((v, k) => (
+            <g key={k}>
+              <line x1={padL} y1={yfn(v)} x2={W - padR} y2={yfn(v)} stroke="var(--panel-border)" strokeWidth={1} />
+              <text x={padL - 8} y={yfn(v) + 4} textAnchor="end" className="kpi-combo-axis">{fmt(v)}</text>
+            </g>
+          ))}
+          {kpiHoverYear != null && kpiHoverYear < n && (
+            <rect x={padL + bandW * kpiHoverYear} y={padT} width={bandW} height={plotH} fill="var(--color-primary)" opacity={0.07} />
+          )}
+          {targets.map((v, i) => (
+            <rect key={i} x={xc(i) - colW / 2} y={yfn(v)} width={colW} height={Math.max(0, plotH - (yfn(v) - padT))} fill="url(#kpiBar)" rx={3} />
+          ))}
+          <polyline points={linePts} fill="none" stroke="var(--text-main)" strokeWidth={2.5} className="kpi-combo-line" />
+          {actuals.map((v, i) => <circle key={i} cx={xc(i)} cy={yfn(v)} r={4} fill="var(--panel-bg)" stroke="var(--text-main)" strokeWidth={2.5} />)}
+          {labels.map((lb, i) => (
+            <g key={i}>
+              <text x={xc(i)} y={H - padB + 22} textAnchor="middle" className="kpi-combo-xlabel">{lb}</text>
+              <rect x={padL + bandW * i} y={padT} width={bandW} height={plotH} fill="transparent" onMouseEnter={() => setKpiHoverYear(i)} />
+            </g>
+          ))}
+        </svg>
+        {kpiHoverYear != null && kpiHoverYear < n && (
+          <div className="kpi-combo-tip" style={{ left: `${xc(kpiHoverYear) / W * 100}%`, top: `${padT / H * 100}%` }}>
+            <div className="kpi-tip-year">{labels[kpiHoverYear]}</div>
+            {tip && tip(kpiHoverYear)}
+            <div className="kpi-tip-row tt"><span>🎯 Target</span><b>{vnd(targets[kpiHoverYear])}</b></div>
+            <div className="kpi-tip-row tt"><span>📈 Actual</span><b>{vnd(actuals[kpiHoverYear])}</b></div>
+            <div className="kpi-tip-row tt"><span>Đạt</span><b className={targets[kpiHoverYear] > 0 && actuals[kpiHoverYear] / targets[kpiHoverYear] >= 1 ? 'up' : targets[kpiHoverYear] > 0 && actuals[kpiHoverYear] / targets[kpiHoverYear] >= 0.7 ? 'mid' : 'down'}>{targets[kpiHoverYear] > 0 ? Math.round(actuals[kpiHoverYear] / targets[kpiHoverYear] * 100) : 0}%</b></div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className={`min-h-screen pb-12 ${isEditMode ? '' : 'read-only'}`}>
       {/* Navigation */}
@@ -1092,97 +1153,55 @@ export default function App() {
               </div>
             </div>
 
-            {/* Revenue KPI · Target vs Actual — live combo chart (stacked Target columns by channel + Actual line) */}
+            {/* Revenue KPI · Target vs Actual — live combo chart (Year / Month views) */}
             {(() => {
-              const fmt = (n: number) => n >= 1e9 ? (n / 1e9).toFixed(n % 1e9 === 0 ? 0 : 1) + ' tỷ' : n >= 1e6 ? (n / 1e6).toFixed(0) + ' tr' : new Intl.NumberFormat('vi-VN').format(Math.round(n || 0));
-              const vnd = (n: number) => new Intl.NumberFormat('vi-VN').format(Math.round(n || 0)) + ' ₫';
-              const CH_COLORS = ['#6366f1', '#ec4899', '#06b6d4', '#14b8a6', '#f59e0b', '#8b5cf6', '#f43f5e', '#10b981'];
-              const chanList = (kpis.years[KPI_YEARS[0]]?.channels || []);
-              const data = KPI_YEARS.map(y => {
+              const fmtC = (n: number) => n >= 1e9 ? (n / 1e9).toFixed(n % 1e9 === 0 ? 0 : 1) + ' tỷ' : n >= 1e6 ? (n / 1e6).toFixed(0) + ' tr' : new Intl.NumberFormat('vi-VN').format(Math.round(n || 0));
+              // YEAR view data
+              const yData = KPI_YEARS.map(y => {
                 const yd = kpis.years[y];
-                const segs = (yd?.channels || []).map((c, i) => ({ name: c.channel, val: (yd?.totalTarget || 0) * (c.allocation || 0) / 100, color: CH_COLORS[i % CH_COLORS.length] }));
-                const target = segs.reduce((s, x) => s + x.val, 0);
+                const target = yd ? yd.channels.reduce((s, c) => s + (yd.totalTarget || 0) * (c.allocation || 0) / 100, 0) : 0;
                 const actual = yd ? yd.channels.reduce((s, c) => s + (c.actual ? c.actual.reduce((a, b) => a + (b || 0), 0) : 0), 0) : 0;
-                return { y, segs, target, actual };
+                return { y, target, actual, channels: yd?.channels || [], totalTarget: yd?.totalTarget || 0 };
               });
-              const rawMax = Math.max(1, ...data.map(d => Math.max(d.target, d.actual)));
-              const pow = Math.pow(10, Math.floor(Math.log10(rawMax)));
-              const yMax = Math.ceil(rawMax / pow) * pow;
-              // SVG geometry
-              const W = 760, H = 360, padL = 74, padR = 20, padT = 22, padB = 52;
-              const plotW = W - padL - padR, plotH = H - padT - padB;
-              const bandW = plotW / data.length;
-              const colW = Math.max(34, Math.min(78, bandW * 0.4));
-              const yfn = (v: number) => padT + plotH - (v / yMax) * plotH;
-              const xCenter = (i: number) => padL + bandW * i + bandW / 2;
-              const linePts = data.map((d, i) => `${xCenter(i)},${yfn(d.actual)}`).join(' ');
-              const ticks = [0, 1, 2, 3, 4].map(k => yMax * k / 4);
-              const hov = kpiHoverYear != null ? data[kpiHoverYear] : null;
+              // MONTH view data (selected dashYear): monthly target & actual across 12 months
+              const md = kpis.years[dashYear];
+              const monthTargets = Array.from({ length: 12 }, (_, m) => (md?.channels || []).reduce((s, c) => s + (md!.totalTarget || 0) * (c.allocation || 0) / 100 * c.curve[Math.floor(m / 3)] / 3, 0));
+              const monthActuals = Array.from({ length: 12 }, (_, m) => (md?.channels || []).reduce((s, c) => s + ((c.actual && c.actual[m]) || 0), 0));
+              const monthLbls = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'];
 
               return (
                 <div className="panel kpi-combo-panel">
                   <h3>
                     <span>Revenue KPI · Target vs Actual</span>
-                    <span>Combo · live từ Target KPIs</span>
-                  </h3>
-                  <div className="kpi-combo-wrap">
-                    <svg className="kpi-combo-svg" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" onMouseLeave={() => setKpiHoverYear(null)}>
-                      {/* gridlines + y labels */}
-                      {ticks.map((v, k) => (
-                        <g key={k}>
-                          <line x1={padL} y1={yfn(v)} x2={W - padR} y2={yfn(v)} stroke="var(--panel-border)" strokeWidth={1} />
-                          <text x={padL - 10} y={yfn(v) + 4} textAnchor="end" className="kpi-combo-axis">{fmt(v)}</text>
-                        </g>
-                      ))}
-                      {/* hover band highlight */}
-                      {kpiHoverYear != null && (
-                        <rect x={padL + bandW * kpiHoverYear} y={padT} width={bandW} height={plotH} fill="var(--color-primary)" opacity={0.06} />
-                      )}
-                      {/* stacked Target columns by channel */}
-                      {data.map((d, i) => {
-                        let cum = 0;
-                        return (
-                          <g key={i}>
-                            {d.segs.map((seg, j) => {
-                              const yTop = yfn(cum + seg.val);
-                              const h = (seg.val / yMax) * plotH;
-                              cum += seg.val;
-                              return <rect key={j} x={xCenter(i) - colW / 2} y={yTop} width={colW} height={Math.max(0, h)} fill={seg.color} rx={j === d.segs.length - 1 ? 4 : 0} />;
-                            })}
-                          </g>
-                        );
-                      })}
-                      {/* Actual line + markers */}
-                      <polyline points={linePts} fill="none" stroke="var(--text-main)" strokeWidth={3} className="kpi-combo-line" />
-                      {data.map((d, i) => <circle key={i} cx={xCenter(i)} cy={yfn(d.actual)} r={5} fill="var(--panel-bg)" stroke="var(--text-main)" strokeWidth={3} className="kpi-combo-dot" />)}
-                      {/* x labels + hover hit areas */}
-                      {data.map((d, i) => (
-                        <g key={i}>
-                          <text x={xCenter(i)} y={H - padB + 24} textAnchor="middle" className="kpi-combo-xlabel">{d.y}</text>
-                          <rect x={padL + bandW * i} y={padT} width={bandW} height={plotH} fill="transparent" onMouseEnter={() => setKpiHoverYear(i)} />
-                        </g>
-                      ))}
-                    </svg>
-                    {/* Tooltip */}
-                    {hov && (
-                      <div className="kpi-combo-tip" style={{ left: `${xCenter(kpiHoverYear!) / W * 100}%`, top: `${padT / H * 100}%` }}>
-                        <div className="kpi-tip-year">Năm {hov.y}</div>
-                        <div className="kpi-tip-rows">
-                          {hov.segs.map((s, j) => (
-                            <div className="kpi-tip-row" key={j}><span className="kpi-tip-dot" style={{ background: s.color }}></span>{s.name}<b>{fmt(s.val)}</b></div>
-                          ))}
-                        </div>
-                        <div className="kpi-tip-sep"></div>
-                        <div className="kpi-tip-row tt"><span>🎯 Target</span><b>{vnd(hov.target)}</b></div>
-                        <div className="kpi-tip-row tt"><span>📈 Actual</span><b>{vnd(hov.actual)}</b></div>
-                        <div className="kpi-tip-row tt"><span>Đạt</span><b className={hov.target > 0 && hov.actual / hov.target >= 1 ? 'up' : hov.target > 0 && hov.actual / hov.target >= 0.7 ? 'mid' : 'down'}>{hov.target > 0 ? Math.round(hov.actual / hov.target * 100) : 0}%</b></div>
+                    <div className="kpi-combo-ctrl">
+                      <div className="kpi-combo-toggle">
+                        <button className={comboView === 'year' ? 'active' : ''} onClick={() => { setComboView('year'); setKpiHoverYear(null); }}>Theo năm</button>
+                        <button className={comboView === 'month' ? 'active' : ''} onClick={() => { setComboView('month'); setKpiHoverYear(null); }}>Theo tháng</button>
                       </div>
-                    )}
-                  </div>
-                  {/* Legend */}
+                      {comboView === 'month' && (
+                        <div className="kpi-combo-years">
+                          {KPI_YEARS.map(y => <button key={y} className={dashYear === y ? 'active' : ''} onClick={() => { setDashYear(y); setKpiHoverYear(null); }}>{y}</button>)}
+                        </div>
+                      )}
+                    </div>
+                  </h3>
+                  {comboView === 'year'
+                    ? comboChart({
+                        labels: KPI_YEARS, targets: yData.map(d => d.target), actuals: yData.map(d => d.actual),
+                        tip: (i) => (
+                          <div className="kpi-tip-rows">
+                            {yData[i].channels.map((c, j) => (
+                              <div className="kpi-tip-row" key={j}><span className="kpi-tip-dot" style={{ background: 'var(--color-primary)' }}></span>{c.channel}<b>{fmtC(yData[i].totalTarget * (c.allocation || 0) / 100)}</b></div>
+                            ))}
+                            <div className="kpi-tip-sep"></div>
+                          </div>
+                        ),
+                      })
+                    : comboChart({ labels: monthLbls, targets: monthTargets, actuals: monthActuals })}
                   <div className="kpi-combo-legend">
-                    {chanList.map((c, i) => <span key={c.id} className="kpi-combo-lg"><i style={{ background: CH_COLORS[i % CH_COLORS.length] }}></i>{c.channel}</span>)}
-                    <span className="kpi-combo-lg"><i className="lg-line"></i>Actual (line)</span>
+                    <span className="kpi-combo-lg"><i style={{ background: '#6366f1' }}></i>Target Revenue</span>
+                    <span className="kpi-combo-lg"><i className="lg-line"></i>Actual Revenue</span>
+                    <span className="kpi-combo-hint">{comboView === 'year' ? 'So sánh 3 năm · rê chuột để xem chi tiết kênh' : `Biến động 12 tháng năm ${dashYear} · live từ Target KPIs`}</span>
                   </div>
                 </div>
               );

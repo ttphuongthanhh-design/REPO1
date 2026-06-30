@@ -2703,3 +2703,14 @@ html:not(.dark) .add-btn.hover\:text-white:hover { color: var(--text-main) !impo
 .kpi-combo-lg { display: inline-flex; align-items: center; gap: 7px; }
 .kpi-combo-lg i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; flex-shrink: 0; }
 .kpi-combo-lg i.lg-line { width: 18px; height: 0; border-top: 3px solid var(--text-main); border-radius: 0; }
+
+/* Combo chart controls (Year/Month toggle + year picker) */
+.kpi-combo-ctrl { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.kpi-combo-toggle, .kpi-combo-years { display: inline-flex; background: var(--bg-secondary); border: 1px solid var(--panel-border); border-radius: 9px; padding: 3px; gap: 2px; }
+.kpi-combo-toggle button, .kpi-combo-years button {
+  background: transparent; border: none; color: var(--text-muted); border-radius: 7px;
+  padding: 5px 12px; font-size: 11px; font-weight: 700;
+}
+.kpi-combo-toggle button:hover, .kpi-combo-years button:hover { color: var(--text-main); transform: none; background: transparent; }
+.kpi-combo-toggle button.active, .kpi-combo-years button.active { background: var(--color-primary); color: #fff; }
+.kpi-combo-hint { font-style: italic; margin-left: auto; }
