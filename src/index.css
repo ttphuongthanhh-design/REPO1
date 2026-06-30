@@ -2670,3 +2670,36 @@ html:not(.dark) .add-btn.hover\:text-white:hover { color: var(--text-main) !impo
   .kpi-total-input { width: 100%; }
 }
 
+
+/* ===== Revenue KPI · Combo Chart (Dashboard) ===== */
+.kpi-combo-panel { margin-bottom: 20px; }
+.kpi-combo-wrap { position: relative; margin-top: 8px; }
+.kpi-combo-svg { width: 100%; height: auto; display: block; overflow: visible; }
+.kpi-combo-axis { fill: var(--text-muted); font-size: 11px; font-weight: 600; }
+.kpi-combo-xlabel { fill: var(--text-main); font-size: 14px; font-weight: 800; }
+.kpi-combo-svg rect[fill]:not([fill="transparent"]) { transition: opacity 0.2s; }
+.kpi-combo-line { filter: drop-shadow(0 2px 3px rgba(0,0,0,0.18)); }
+.kpi-combo-svg rect[fill="transparent"] { cursor: pointer; }
+
+.kpi-combo-tip {
+  position: absolute; transform: translate(-50%, calc(-100% - 10px));
+  background: var(--panel-bg); border: 1px solid var(--panel-border);
+  border-radius: 12px; box-shadow: 0 12px 32px rgba(0,0,0,0.22);
+  padding: 12px 14px; min-width: 200px; pointer-events: none; z-index: 5;
+}
+.kpi-tip-year { font-size: 12px; font-weight: 800; color: var(--text-main); margin-bottom: 8px; }
+.kpi-tip-rows { display: flex; flex-direction: column; gap: 5px; }
+.kpi-tip-row { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--text-muted); }
+.kpi-tip-row b { margin-left: auto; color: var(--text-main); font-weight: 800; }
+.kpi-tip-dot { width: 9px; height: 9px; border-radius: 3px; flex-shrink: 0; }
+.kpi-tip-sep { height: 1px; background: var(--panel-border); margin: 9px 0; }
+.kpi-tip-row.tt { font-size: 12px; }
+.kpi-tip-row.tt span { color: var(--text-muted); }
+.kpi-tip-row.tt b.up { color: var(--color-success); }
+.kpi-tip-row.tt b.mid { color: var(--color-warning); }
+.kpi-tip-row.tt b.down { color: var(--color-danger); }
+
+.kpi-combo-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; margin-top: 16px; font-size: 11px; color: var(--text-muted); }
+.kpi-combo-lg { display: inline-flex; align-items: center; gap: 7px; }
+.kpi-combo-lg i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; flex-shrink: 0; }
+.kpi-combo-lg i.lg-line { width: 18px; height: 0; border-top: 3px solid var(--text-main); border-radius: 0; }
