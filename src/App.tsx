@@ -320,6 +320,12 @@ export default function App() {
     if (!isEditMode) return;
     setKpis(prev => ({ ...prev, channels: prev.channels.map(c => c.id === id ? { ...c, [field]: field === 'allocation' ? Math.max(0, +value || 0) : value } : c) }));
   };
+  // Monthly Target Allocation table — sort & filter
+  const [kpiMonthSort, setKpiMonthSort] = useState<{ col: 'name' | 'total' | number; dir: 'asc' | 'desc' }>({ col: 'total', dir: 'desc' });
+  const [kpiMonthFilter, setKpiMonthFilter] = useState<'all' | 'High' | 'Medium' | 'Low'>('all');
+  const toggleKpiMonthSort = (col: 'name' | 'total' | number) => {
+    setKpiMonthSort(prev => prev.col === col ? { col, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { col, dir: typeof col === 'string' && col === 'name' ? 'asc' : 'desc' });
+  };
 
   // Task Tracker table sorting
   const [trackerSort, setTrackerSort] = useState<{ field: 'title' | 'assignee' | 'scope' | 'col' | 'pct' | 'deadline' | 'updatedAt'; dir: 'asc' | 'desc' }>({ field: 'updatedAt', dir: 'desc' });
@@ -1652,51 +1658,83 @@ export default function App() {
                     </table>
                   </div>
 
-                  {/* SECTION 2 */}
-                  <div className="kpi-section-h">Section 2 — Quarterly Strategy Breakdown</div>
-                  <div className="kpi-table-wrap">
-                    <table className="kpi-table">
-                      <thead>
-                        <tr>
-                          <th className="kpi-sticky-col">Channel</th>
-                          <th>Allocation %</th>
-                          <th>Annual Target</th>
-                          <th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th>
-                          <th>H2/H1 Growth</th>
-                          <th className="kpi-notes-col">Channel Characteristics</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {rows.map((r, idx) => (
-                          <tr key={r.c.id} className={idx % 2 ? 'kpi-alt' : ''}>
-                            <td className="kpi-sticky-col kpi-channel">{r.c.channel}</td>
-                            <td className="kpi-num">{r.c.allocation}%</td>
-                            <td className="kpi-num kpi-money">{compact(r.annual)}</td>
-                            {r.q.map((v, i) => <td key={i} className="kpi-num">{compact(v)}</td>)}
-                            <td className="kpi-num"><span className={`kpi-grow ${growthCls(r.growth)}`}>{r.growth.toFixed(2)}x</span></td>
-                            <td className="kpi-notes-col">
-                              {isEditMode ? (
-                                <input className="kpi-cell-input kpi-notes-input" value={r.c.characteristics} onChange={e => updateKpiChannel(r.c.id, 'characteristics', e.target.value)} />
-                              ) : <span className="kpi-notes-text">{r.c.characteristics}</span>}
-                            </td>
-                          </tr>
-                        ))}
-                        <tr className="kpi-total-row">
-                          <td className="kpi-sticky-col">TOTAL</td>
-                          <td className="kpi-num">{allocSum.toFixed(1)}%</td>
-                          <td className="kpi-num kpi-money">{compact(sum(r => r.annual))}</td>
-                          {tQ.map((v, i) => <td key={i} className="kpi-num">{compact(v)}</td>)}
-                          <td className="kpi-num">{(() => { const h1 = tQ[0] + tQ[1]; const g = h1 > 0 ? (tQ[2] + tQ[3]) / h1 : 0; return <span className={`kpi-grow ${growthCls(g)}`}>{g.toFixed(2)}x</span>; })()}</td>
-                          <td></td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
+                  {/* SECTION 2 — Monthly Target Allocation */}
+                  {(() => {
+                    const months = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
+                    // Each KPI row: 12 monthly values derived from the channel's quarterly curve (quarter / 3 per month).
+                    let mRows = rows.map(r => ({
+                      c: r.c,
+                      m: Array.from({ length: 12 }, (_, i) => r.annual * r.c.curve[Math.floor(i / 3)] / 3),
+                      total: r.annual,
+                    }));
+                    if (kpiMonthFilter !== 'all') mRows = mRows.filter(r => r.c.priority === kpiMonthFilter);
+                    const dir = kpiMonthSort.dir === 'asc' ? 1 : -1;
+                    mRows = [...mRows].sort((a, b) => {
+                      if (kpiMonthSort.col === 'name') return a.c.channel.localeCompare(b.c.channel) * dir;
+                      if (kpiMonthSort.col === 'total') return (a.total - b.total) * dir;
+                      return (a.m[kpiMonthSort.col as number] - b.m[kpiMonthSort.col as number]) * dir;
+                    });
+                    const colTotals = Array.from({ length: 12 }, (_, i) => mRows.reduce((s, r) => s + r.m[i], 0));
+                    const grand = mRows.reduce((s, r) => s + r.total, 0);
+                    const maxTotal = Math.max(1, ...mRows.map(r => r.total));
+                    const arrow = (col: 'name' | 'total' | number) => kpiMonthSort.col === col ? (kpiMonthSort.dir === 'asc' ? ' ↑' : ' ↓') : '';
 
-                  <div className="kpi-legend">
-                    <span><b>Priority:</b> <span className="kpi-pri kpi-pri-high">High</span> <span className="kpi-pri kpi-pri-med">Medium</span> <span className="kpi-pri kpi-pri-low">Low</span></span>
-                    <span><b>Growth:</b> <span className="kpi-grow kpi-grow-up">&gt;1x</span> <span className="kpi-grow kpi-grow-flat">=1x</span> <span className="kpi-grow kpi-grow-down">&lt;1x</span></span>
-                  </div>
+                    return (
+                      <>
+                        <div className="kpi-section-bar">
+                          <div className="kpi-section-h2">PHÂN BỔ MỤC TIÊU THEO THÁNG</div>
+                          <div className="kpi-filter">
+                            <span className="kpi-filter-lbl">Lọc hạng mục:</span>
+                            {(['all', 'High', 'Medium', 'Low'] as const).map(f => (
+                              <button key={f} className={`kpi-fbtn ${kpiMonthFilter === f ? 'active' : ''}`} onClick={() => setKpiMonthFilter(f)}>
+                                {f === 'all' ? 'Tất cả' : f}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="kpi-table-wrap">
+                          <table className="kpi-table kpi-month-table">
+                            <thead>
+                              <tr>
+                                <th className="kpi-sticky-col kpi-th-sort" onClick={() => toggleKpiMonthSort('name')}>Hạng mục / KPI{arrow('name')}</th>
+                                {months.map((m, i) => (
+                                  <th key={i} className="kpi-th-sort" onClick={() => toggleKpiMonthSort(i)}>{m}{arrow(i)}</th>
+                                ))}
+                                <th className="kpi-th-sort kpi-total-col" onClick={() => toggleKpiMonthSort('total')}>Tổng{arrow('total')}</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {mRows.map((r, idx) => (
+                                <tr key={r.c.id} className={idx % 2 ? 'kpi-alt' : ''}>
+                                  <td className="kpi-sticky-col kpi-channel">{r.c.channel}</td>
+                                  {r.m.map((v, i) => <td key={i} className="kpi-num">{compact(v)}</td>)}
+                                  <td className="kpi-num kpi-total-col">
+                                    <div className="kpi-totalcell">
+                                      <span className="kpi-money">{compact(r.total)}</span>
+                                      <span className="kpi-bar"><span className="kpi-bar-fill" style={{ width: `${(r.total / maxTotal) * 100}%` }}></span></span>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                              {mRows.length === 0 && (
+                                <tr><td className="kpi-sticky-col" colSpan={14} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Không có hạng mục nào khớp bộ lọc.</td></tr>
+                              )}
+                              <tr className="kpi-total-row">
+                                <td className="kpi-sticky-col">TỔNG</td>
+                                {colTotals.map((v, i) => <td key={i} className="kpi-num">{compact(v)}</td>)}
+                                <td className="kpi-num kpi-total-col kpi-money">{compact(grand)}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <div className="kpi-legend">
+                          <span><b>Priority:</b> <span className="kpi-pri kpi-pri-high">High</span> <span className="kpi-pri kpi-pri-med">Medium</span> <span className="kpi-pri kpi-pri-low">Low</span></span>
+                          <span className="kpi-legend-note">Giá trị từng tháng được tính tự động từ mục tiêu năm &amp; phân bổ quý của mỗi kênh · bấm tiêu đề cột để sắp xếp.</span>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               );
             })()}
