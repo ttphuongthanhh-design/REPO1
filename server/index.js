@@ -17,7 +17,7 @@ const pool = connectionString
   : null;
 
 // State keys persisted as one JSONB document each.
-const KEYS = ['tasks', 'subtypes', 'members'];
+const KEYS = ['tasks', 'subtypes', 'members', 'activity'];
 
 async function initDb() {
   if (!pool) {

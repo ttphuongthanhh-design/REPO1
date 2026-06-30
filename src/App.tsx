@@ -42,6 +42,16 @@ interface Task {
   note: string;
   link?: string;
   completedAt?: string; // ISO date set when the task is marked Done (col 3)
+  updatedAt?: string;   // ISO timestamp of the last change (drives the Task Tracker "last update")
+}
+
+// One entry in the Activity Log — the audit trail that lets you follow a task end-to-end.
+interface Activity {
+  at: string;       // ISO timestamp
+  taskId: number;
+  title: string;    // task title at the time of the event
+  type: 'created' | 'status' | 'progress' | 'done' | 'edited' | 'deleted';
+  detail: string;   // human-readable summary, e.g. "Backlog → In Progress"
 }
 
 interface Member {
@@ -224,6 +234,34 @@ export default function App() {
     return DEFAULT_MEMBERS;
   });
 
+  // --- Activity Log (audit trail powering the Task Tracker) ---
+  const [activity, setActivity] = useState<Activity[]>(() => {
+    try {
+      const saved = localStorage.getItem('impact_activity');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return [];
+  });
+
+  const logActivity = (taskId: number, title: string, type: Activity['type'], detail: string) => {
+    setActivity(prev => [{ at: new Date().toISOString(), taskId, title, type, detail }, ...prev].slice(0, 500));
+  };
+
+  useEffect(() => {
+    try { localStorage.setItem('impact_activity', JSON.stringify(activity)); } catch (e) { console.error(e); }
+  }, [activity]);
+
+  // Task Tracker table sorting
+  const [trackerSort, setTrackerSort] = useState<{ field: 'title' | 'assignee' | 'scope' | 'col' | 'pct' | 'deadline' | 'updatedAt'; dir: 'asc' | 'desc' }>({ field: 'updatedAt', dir: 'desc' });
+  const toggleTrackerSort = (field: typeof trackerSort.field) => {
+    setTrackerSort(prev => prev.field === field ? { field, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { field, dir: 'asc' });
+  };
+
   // --- Server sync (Postgres-backed via /api/state) ---
   // The app keeps working offline via localStorage; this layer adds shared persistence.
   const serverLoadedRef = React.useRef(false);
@@ -244,6 +282,9 @@ export default function App() {
         if (Array.isArray(data.members) && data.members.length > 0) {
           setMembers(data.members.map((m: Member) => ({ ...m, removable: m.id !== LOCKED_MEMBER_ID })));
         }
+        if (Array.isArray(data.activity)) {
+          setActivity(data.activity);
+        }
       })
       .catch(() => { /* offline: fall back to localStorage data already loaded */ })
       .finally(() => { if (!cancelled) serverLoadedRef.current = true; });
@@ -257,11 +298,11 @@ export default function App() {
       fetch('/api/state', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tasks, subtypes, members }),
+        body: JSON.stringify({ tasks, subtypes, members, activity }),
       }).catch(() => { /* ignore: localStorage still holds the data */ });
     }, 600);
     return () => clearTimeout(id);
-  }, [tasks, subtypes, members]);
+  }, [tasks, subtypes, members, activity]);
 
   // Member lookup helpers
   const memberById = (id: string) => members.find(m => m.id === id);
@@ -270,7 +311,7 @@ export default function App() {
   const memberColor = (id: string) => memberById(id)?.color ?? 'linear-gradient(135deg, #94a3b8, #475569)';
   const memberInitial = (id: string) => (memberById(id)?.name ?? id).trim().charAt(0).toUpperCase() || '?';
 
-  const [activeTab, setActiveTab] = useState<'dash' | 'kanban' | 'timeline' | 'daily' | 'weekly'>('dash');
+  const [activeTab, setActiveTab] = useState<'dash' | 'kanban' | 'tracker' | 'timeline' | 'daily' | 'weekly'>('dash');
 
   const [darkMode, setDarkMode] = useState(() => {
     try {
@@ -500,7 +541,9 @@ export default function App() {
   const handleDeleteTask = (id: number) => {
     if (!isEditMode) return;
     if (confirm('Delete this task?')) {
+      const victim = tasks.find(t => t.id === id);
       setTasks(prev => prev.filter(t => t.id !== id));
+      if (victim) logActivity(id, victim.title, 'deleted', `Đã xoá khỏi ${COLS[victim.col]}`);
       if (isModalOpen && editId === id) setIsModalOpen(false);
     }
   };
@@ -518,18 +561,29 @@ export default function App() {
     } else {
       formattedForm.completedAt = undefined;
     }
+    formattedForm.updatedAt = new Date().toISOString();
 
     if (editId !== null) {
+      const before = tasks.find(t => t.id === editId);
       setTasks(prev => prev.map(t => t.id === editId ? { ...t, ...formattedForm } : t));
+      if (before) {
+        if (before.col !== formattedForm.col) {
+          logActivity(editId, formattedForm.title, formattedForm.col === 3 ? 'done' : 'status', `${COLS[before.col]} → ${COLS[formattedForm.col]}`);
+        } else {
+          logActivity(editId, formattedForm.title, 'edited', 'Cập nhật thông tin task');
+        }
+      }
     } else {
       const nextId = tasks.reduce((max, t) => Math.max(max, t.id), 0) + 1;
       setTasks(prev => [...prev, { id: nextId, ...formattedForm }]);
+      logActivity(nextId, formattedForm.title, 'created', `Tạo mới trong ${COLS[formattedForm.col]}`);
     }
     setIsModalOpen(false);
   };
 
   const updateTaskField = (id: number, field: keyof Task, value: any) => {
     if (!isEditMode) return;
+    const before = tasks.find(t => t.id === id);
     setTasks(prev => prev.map(t => {
       if (t.id === id) {
         const updated = { ...t, [field]: value };
@@ -548,10 +602,25 @@ export default function App() {
         } else if (updated.col !== 3) {
           updated.completedAt = undefined;
         }
+        updated.updatedAt = new Date().toISOString();
         return updated;
       }
       return t;
     }));
+    // Log meaningful transitions (status changes / completion); skip noisy per-keystroke pct edits.
+    if (before) {
+      if (field === 'col') {
+        const toCol = +value;
+        if (toCol !== before.col) {
+          logActivity(id, before.title, toCol === 3 ? 'done' : 'status', `${COLS[before.col]} → ${COLS[toCol]}`);
+        }
+      } else if (field === 'pct') {
+        const p = Math.min(100, Math.max(0, +value || 0));
+        if (p === 100 && before.col !== 3) {
+          logActivity(id, before.title, 'done', `${COLS[before.col]} → ${COLS[3]} (100%)`);
+        }
+      }
+    }
   };
 
   // Subtype Customization
@@ -802,6 +871,7 @@ export default function App() {
         <div className="nav-logo">IMPACT TEAM</div>
         <div className={`nav-tab ${activeTab === 'dash' ? 'active' : ''}`} onClick={() => setActiveTab('dash')}>Dashboard</div>
         <div className={`nav-tab ${activeTab === 'kanban' ? 'active' : ''}`} onClick={() => setActiveTab('kanban')}>Kanban</div>
+        <div className={`nav-tab ${activeTab === 'tracker' ? 'active' : ''}`} onClick={() => setActiveTab('tracker')}>Task Tracker</div>
         <div className={`nav-tab ${activeTab === 'timeline' ? 'active' : ''}`} onClick={() => setActiveTab('timeline')}>Gantt Timeline</div>
         <div className={`nav-tab ${activeTab === 'daily' ? 'active' : ''}`} onClick={() => setActiveTab('daily')}>Daily Report</div>
         <div className={`nav-tab ${activeTab === 'weekly' ? 'active' : ''}`} onClick={() => setActiveTab('weekly')}>Weekly Report</div>
@@ -1231,6 +1301,172 @@ export default function App() {
                     )}
                   </div>
                 </div>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* --- TASK TRACKER (Master table + Activity Log) --- */}
+        {activeTab === 'tracker' && (
+          <div className="page active">
+            {(() => {
+              const ACT_META: Record<Activity['type'], { label: string; color: string }> = {
+                created: { label: 'Tạo mới', color: '#818cf8' },
+                status: { label: 'Chuyển giai đoạn', color: '#3b82f6' },
+                progress: { label: 'Tiến độ', color: '#f59e0b' },
+                done: { label: 'Hoàn thành', color: '#10b981' },
+                edited: { label: 'Chỉnh sửa', color: '#94a3b8' },
+                deleted: { label: 'Đã xoá', color: '#ef4444' },
+              };
+              const fmtDate = (iso?: string) => iso ? new Date(iso).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
+              const timeAgo = (iso?: string) => {
+                if (!iso) return '—';
+                const diff = Date.now() - new Date(iso).getTime();
+                const m = Math.floor(diff / 60000);
+                if (m < 1) return 'vừa xong';
+                if (m < 60) return `${m} phút trước`;
+                const h = Math.floor(m / 60);
+                if (h < 24) return `${h} giờ trước`;
+                const d = Math.floor(h / 24);
+                if (d < 30) return `${d} ngày trước`;
+                return fmtDate(iso);
+              };
+
+              const filtered = tasks.filter(t => {
+                const matchesAssignee = assigneeFilter === 'all' || t.assignee === assigneeFilter;
+                const matchesScope = scopeFilter === 'all' || t.scope === scopeFilter;
+                const matchesSearch = !searchQuery || t.title.toLowerCase().includes(searchQuery.toLowerCase());
+                return matchesAssignee && matchesScope && matchesSearch;
+              });
+              const sorted = [...filtered].sort((a, b) => {
+                const dir = trackerSort.dir === 'asc' ? 1 : -1;
+                const f = trackerSort.field;
+                let av: any, bv: any;
+                if (f === 'assignee') { av = memberName(a.assignee); bv = memberName(b.assignee); }
+                else if (f === 'scope') { av = SCOPES[a.scope]; bv = SCOPES[b.scope]; }
+                else { av = (a as any)[f] ?? ''; bv = (b as any)[f] ?? ''; }
+                if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
+                return String(av).localeCompare(String(bv)) * dir;
+              });
+              const today = new Date(); today.setHours(0, 0, 0, 0);
+              const arrow = (f: typeof trackerSort.field) => trackerSort.field === f ? (trackerSort.dir === 'asc' ? ' ▲' : ' ▼') : '';
+              const cols: { f: typeof trackerSort.field; label: string }[] = [
+                { f: 'title', label: 'Task' },
+                { f: 'scope', label: 'Scope' },
+                { f: 'assignee', label: 'Người phụ trách' },
+                { f: 'col', label: 'Giai đoạn' },
+                { f: 'pct', label: '% Done' },
+                { f: 'deadline', label: 'Deadline' },
+                { f: 'updatedAt', label: 'Cập nhật' },
+              ];
+
+              return (
+                <>
+                  <div className="top-bar">
+                    <h2>Task Tracker</h2>
+                    <div className="filters">
+                      <button className={`fb ${assigneeFilter === 'all' ? 'active' : ''}`} onClick={() => setAssigneeFilter('all')}>All Assignees</button>
+                      {members.map(mem => (
+                        <button key={mem.id} className={`fb fb-member ${assigneeFilter === mem.id ? 'active' : ''}`} onClick={() => setAssigneeFilter(mem.id)}>
+                          <span className="fb-dot" style={{ background: mem.color }}></span>
+                          {mem.name.charAt(0) + mem.name.slice(1).toLowerCase()}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="filters pl-3 border-l border-white/10">
+                      <button className={`fb ${scopeFilter === 'all' ? 'active' : ''}`} onClick={() => setScopeFilter('all')}>All Scopes</button>
+                      {(['ae', 'si', 'pd', 'va', 'pr'] as const).map(sc => (
+                        <button key={sc} className={`fb ${scopeFilter === sc ? 'active' : ''}`} onClick={() => setScopeFilter(sc)}>{SCOPES[sc]}</button>
+                      ))}
+                    </div>
+                    <div className="search-wrap ml-auto">
+                      <input placeholder="🔍 Search tasks..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                    </div>
+                  </div>
+
+                  {/* Stage summary chips */}
+                  <div className="tracker-stages">
+                    {COLS.map((colName, idx) => (
+                      <div className="tracker-stage-chip" key={idx}>
+                        <span className="col-dot" style={{ background: COL_COLORS[idx], color: COL_COLORS[idx] }}></span>
+                        <span className="tsc-label">{colName}</span>
+                        <span className="tsc-count">{filtered.filter(t => t.col === idx).length}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Master tracker table */}
+                  <div className="tracker-table-wrap">
+                    <table className="tracker-table">
+                      <thead>
+                        <tr>
+                          {cols.map(c => (
+                            <th key={c.f} onClick={() => toggleTrackerSort(c.f)} className="tracker-th">
+                              {c.label}{arrow(c.f)}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sorted.length === 0 ? (
+                          <tr><td colSpan={7} className="tracker-empty">Không có task nào khớp bộ lọc.</td></tr>
+                        ) : sorted.map(t => {
+                          const overdue = t.deadline && t.col !== 3 && t.col !== 4 && new Date(t.deadline) < today;
+                          return (
+                            <tr key={t.id} className="tracker-row" onClick={() => isEditMode && handleOpenEditModal(t)}>
+                              <td className="tt-title">{t.title}</td>
+                              <td><span className={`badge s-${t.scope}`}>{SCOPES[t.scope]}</span></td>
+                              <td>
+                                <span className="av-tag">
+                                  <span className="av" style={{ background: memberColor(t.assignee), color: '#fff' }}>{memberInitial(t.assignee)}</span>
+                                  {memberName(t.assignee)}
+                                </span>
+                              </td>
+                              <td>
+                                <span className="stage-badge" style={{ background: `${COL_COLORS[t.col]}22`, color: COL_COLORS[t.col], borderColor: `${COL_COLORS[t.col]}55` }}>
+                                  {COLS[t.col]}
+                                </span>
+                              </td>
+                              <td>
+                                <div className="tt-pct">
+                                  <div className="tt-pct-bar"><div className="tt-pct-fill" style={{ width: `${t.pct}%`, background: COL_COLORS[t.col] }}></div></div>
+                                  <span className="tt-pct-lbl">{t.pct}%</span>
+                                </div>
+                              </td>
+                              <td className={overdue ? 'tt-overdue' : ''}>
+                                {fmtDate(t.deadline)}{overdue ? ' ⚠' : ''}
+                              </td>
+                              <td className="tt-updated">{timeAgo(t.updatedAt)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Activity Log */}
+                  <div className="activity-section">
+                    <div className="activity-h">
+                      <Clock size={14} /> Activity Log
+                      <span className="activity-sub">Nhật ký mọi thay đổi — theo dõi hành trình task xuyên suốt</span>
+                    </div>
+                    {activity.length === 0 ? (
+                      <div className="tracker-empty">Chưa có hoạt động nào được ghi nhận. Tạo / di chuyển / hoàn thành task để bắt đầu theo dõi.</div>
+                    ) : (
+                      <div className="activity-list">
+                        {activity.slice(0, 60).map((a, i) => (
+                          <div className="activity-item" key={`${a.at}-${i}`}>
+                            <span className="activity-dot" style={{ background: ACT_META[a.type].color }}></span>
+                            <span className="activity-type" style={{ color: ACT_META[a.type].color }}>{ACT_META[a.type].label}</span>
+                            <span className="activity-title">{a.title}</span>
+                            <span className="activity-detail">{a.detail}</span>
+                            <span className="activity-time">{timeAgo(a.at)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
               );
             })()}
           </div>
