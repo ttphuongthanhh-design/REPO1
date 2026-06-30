@@ -2436,7 +2436,7 @@ export default function App() {
                   return (
                     <div className="kpi-card" key={sc}>
                       <div className="kpi-card-h">
-                        <span className="scope-name border-l-4 pl-2 font-bold" style={{ borderColor: SCOPE_CONFIGS[sc].color }}>{SCOPES[sc]}</span>
+                        <span className="scope-name border-l-4 pl-2 font-bold" style={{ borderColor: SCOPE_CONFIGS[sc].color }}>SOW {SCOPES[sc]}</span>
                         <span className={`risk-badge ${isGood ? 'risk-on' : isWarning ? 'risk-at' : 'risk-off'}`}>{statusLbl}</span>
                       </div>
                       <div className="kpi-metrics">
