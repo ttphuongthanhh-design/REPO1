@@ -153,6 +153,33 @@ const defaultSubtypes: Record<'ae' | 'si' | 'pd' | 'va' | 'pr', string[]> = {
 
 const GANTT_DAYS = 42; // 6 weeks view
 
+// ===== Target KPIs — Annual Revenue Planning by Distribution Channel =====
+interface KpiChannel {
+  id: number;
+  channel: string;
+  allocation: number;            // % of total annual target (user-editable)
+  priority: 'High' | 'Medium' | 'Low'; // user-editable
+  notes: string;                 // user-editable
+  characteristics: string;       // channel description (Section 2)
+  curve: [number, number, number, number]; // fixed seasonal split across Q1..Q4 (sums to 1)
+}
+interface KpiData {
+  totalTarget: number;           // total annual target in VND (user-editable, prominent)
+  channels: KpiChannel[];
+}
+const DEFAULT_KPIS: KpiData = {
+  totalTarget: 50_000_000_000, // 50 tỷ VND
+  channels: [
+    { id: 1, channel: 'University',      allocation: 20, priority: 'High',   notes: 'Back-to-school & exam seasons drive H2 demand', characteristics: 'Seasonal, term-driven; strong H2 ramp', curve: [0.20, 0.22, 0.28, 0.30] },
+    { id: 2, channel: 'Fast Food',       allocation: 18, priority: 'High',   notes: 'Stable year-round footfall',                   characteristics: 'High frequency, low seasonality',     curve: [0.25, 0.25, 0.25, 0.25] },
+    { id: 3, channel: 'Coffee Shop',     allocation: 16, priority: 'Medium', notes: 'Front-loaded; cools toward year-end',          characteristics: 'Front-loaded; H1 heavy',              curve: [0.28, 0.26, 0.24, 0.22] },
+    { id: 4, channel: 'Salon',           allocation: 12, priority: 'Medium', notes: 'Gradual ramp toward festive season',           characteristics: 'Steady ramp; festive uplift',         curve: [0.22, 0.24, 0.26, 0.28] },
+    { id: 5, channel: 'Building',        allocation: 14, priority: 'Low',    notes: 'Project-based; concentrated early in year',    characteristics: 'Project-based; H1 concentrated',      curve: [0.30, 0.28, 0.22, 0.20] },
+    { id: 6, channel: 'Apartment',       allocation: 12, priority: 'Medium', notes: 'Even spread, slight H2 lift',                  characteristics: 'Residential; balanced demand',        curve: [0.24, 0.24, 0.26, 0.26] },
+    { id: 7, channel: 'Hotel & Resort',  allocation: 8,  priority: 'High',   notes: 'Peaks mid-year (summer travel)',               characteristics: 'Tourism-led; mid-year peak',          curve: [0.20, 0.30, 0.30, 0.20] },
+  ],
+};
+
 // --- Security: simple obfuscating hash + baked default edit password ---
 const hashPwd = (s: string) => {
   let h = 0;
@@ -273,6 +300,27 @@ export default function App() {
     });
   }, []);
 
+  // --- Target KPIs (annual revenue planning) ---
+  const [kpis, setKpis] = useState<KpiData>(() => {
+    try {
+      const saved = localStorage.getItem('impact_kpis');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && Array.isArray(parsed.channels) && parsed.channels.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return DEFAULT_KPIS;
+  });
+  useEffect(() => {
+    try { localStorage.setItem('impact_kpis', JSON.stringify(kpis)); } catch (e) { console.error(e); }
+  }, [kpis]);
+  const updateKpiChannel = (id: number, field: keyof KpiChannel, value: any) => {
+    if (!isEditMode) return;
+    setKpis(prev => ({ ...prev, channels: prev.channels.map(c => c.id === id ? { ...c, [field]: field === 'allocation' ? Math.max(0, +value || 0) : value } : c) }));
+  };
+
   // Task Tracker table sorting
   const [trackerSort, setTrackerSort] = useState<{ field: 'title' | 'assignee' | 'scope' | 'col' | 'pct' | 'deadline' | 'updatedAt'; dir: 'asc' | 'desc' }>({ field: 'updatedAt', dir: 'desc' });
   const toggleTrackerSort = (field: typeof trackerSort.field) => {
@@ -302,6 +350,9 @@ export default function App() {
         if (Array.isArray(data.activity)) {
           setActivity(data.activity.filter((a: Activity) => isWithinRetention(a.at)));
         }
+        if (data.kpis && Array.isArray(data.kpis.channels) && data.kpis.channels.length > 0) {
+          setKpis(data.kpis);
+        }
       })
       .catch(() => { /* offline: fall back to localStorage data already loaded */ })
       .finally(() => { if (!cancelled) serverLoadedRef.current = true; });
@@ -315,11 +366,11 @@ export default function App() {
       fetch('/api/state', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tasks, subtypes, members, activity }),
+        body: JSON.stringify({ tasks, subtypes, members, activity, kpis }),
       }).catch(() => { /* ignore: localStorage still holds the data */ });
     }, 600);
     return () => clearTimeout(id);
-  }, [tasks, subtypes, members, activity]);
+  }, [tasks, subtypes, members, activity, kpis]);
 
   // Member lookup helpers
   const memberById = (id: string) => members.find(m => m.id === id);
@@ -328,7 +379,7 @@ export default function App() {
   const memberColor = (id: string) => memberById(id)?.color ?? 'linear-gradient(135deg, #94a3b8, #475569)';
   const memberInitial = (id: string) => (memberById(id)?.name ?? id).trim().charAt(0).toUpperCase() || '?';
 
-  const [activeTab, setActiveTab] = useState<'dash' | 'kanban' | 'tracker' | 'timeline' | 'daily' | 'weekly'>('dash');
+  const [activeTab, setActiveTab] = useState<'dash' | 'kanban' | 'tracker' | 'timeline' | 'daily' | 'weekly' | 'kpis'>('dash');
 
   const [darkMode, setDarkMode] = useState(() => {
     try {
@@ -913,6 +964,7 @@ export default function App() {
         <div className={`nav-tab ${activeTab === 'timeline' ? 'active' : ''}`} onClick={() => setActiveTab('timeline')}>Gantt Timeline</div>
         <div className={`nav-tab ${activeTab === 'daily' ? 'active' : ''}`} onClick={() => setActiveTab('daily')}>Daily Report</div>
         <div className={`nav-tab ${activeTab === 'weekly' ? 'active' : ''}`} onClick={() => setActiveTab('weekly')}>Weekly Report</div>
+        <div className={`nav-tab ${activeTab === 'kpis' ? 'active' : ''}`} onClick={() => setActiveTab('kpis')}>Target KPIs</div>
         <div className="nav-right">
           <button 
             type="button" 
@@ -1489,6 +1541,168 @@ export default function App() {
                     );
                   })()}
                 </>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* --- TARGET KPIs (Annual Revenue Planning by Distribution Channel) --- */}
+        {activeTab === 'kpis' && (
+          <div className="page active">
+            {(() => {
+              const vnd = (n: number) => new Intl.NumberFormat('vi-VN').format(Math.round(n || 0));
+              const compact = (n: number) => {
+                if (n >= 1e9) return (n / 1e9).toFixed(n % 1e9 === 0 ? 0 : 1) + ' tỷ';
+                if (n >= 1e6) return (n / 1e6).toFixed(0) + ' tr';
+                return vnd(n);
+              };
+              const total = kpis.totalTarget || 0;
+              const rows = kpis.channels.map(c => {
+                const annual = total * (c.allocation || 0) / 100;
+                const q = c.curve.map(w => annual * w) as number[];
+                const months = [q[0] / 3, q[0] / 3, q[0] / 3, q[1] / 3, q[1] / 3]; // T1..T5 from Q1/Q2
+                const h1 = q[0] + q[1];
+                const growth = h1 > 0 ? (q[2] + q[3]) / h1 : 0;
+                return { c, annual, q, months, growth };
+              });
+              const allocSum = kpis.channels.reduce((s, c) => s + (c.allocation || 0), 0);
+              const sum = (f: (r: typeof rows[number]) => number) => rows.reduce((s, r) => s + f(r), 0);
+              const tQ = [0, 1, 2, 3].map(i => sum(r => r.q[i]));
+              const tM = [0, 1, 2, 3, 4].map(i => sum(r => r.months[i]));
+              const priCls = (p: string) => p === 'High' ? 'kpi-pri-high' : p === 'Medium' ? 'kpi-pri-med' : 'kpi-pri-low';
+              const growthCls = (g: number) => g > 1.0001 ? 'kpi-grow-up' : g < 0.9999 ? 'kpi-grow-down' : 'kpi-grow-flat';
+
+              return (
+                <div className="kpi-wrap">
+                  {/* Executive title bar */}
+                  <div className="kpi-titlebar">
+                    <div>
+                      <div className="kpi-title">Annual Revenue Planning · Distribution Channels</div>
+                      <div className="kpi-subtitle">Executive plan — formula-driven. Edit only Allocation %, Total Target, Priority &amp; Notes; everything else updates automatically.</div>
+                    </div>
+                    <div className="kpi-total-box">
+                      <div className="kpi-total-lbl">Total Annual Target (VND)</div>
+                      {isEditMode ? (
+                        <input
+                          type="number"
+                          className="kpi-total-input"
+                          value={kpis.totalTarget}
+                          onChange={e => setKpis(prev => ({ ...prev, totalTarget: Math.max(0, +e.target.value || 0) }))}
+                        />
+                      ) : (
+                        <div className="kpi-total-val">{vnd(total)} ₫</div>
+                      )}
+                      <div className="kpi-total-sub">{compact(total)} · {rows.length} channels</div>
+                    </div>
+                  </div>
+
+                  {/* Strategy note + allocation guideline */}
+                  <div className="kpi-guideline">
+                    <span className={`kpi-alloc-chip ${Math.round(allocSum) === 100 ? 'ok' : 'warn'}`}>
+                      Allocation total: {allocSum.toFixed(1)}% {Math.round(allocSum) === 100 ? '✓' : '⚠ phải = 100%'}
+                    </span>
+                    <span className="kpi-strategy">Strategy: prioritise High-priority channels for H2 ramp; quarterly &amp; monthly targets are derived from each channel's seasonal curve.</span>
+                  </div>
+
+                  {/* SECTION 1 */}
+                  <div className="kpi-section-h">Section 1 — Annual Revenue Plan by Distribution Channel</div>
+                  <div className="kpi-table-wrap">
+                    <table className="kpi-table">
+                      <thead>
+                        <tr>
+                          <th className="kpi-sticky-col">Distribution Channel</th>
+                          <th>Allocation %</th>
+                          <th>Annual Target (VND)</th>
+                          <th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th>
+                          <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th>
+                          <th>Priority</th>
+                          <th className="kpi-notes-col">Strategic Notes</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map((r, idx) => (
+                          <tr key={r.c.id} className={idx % 2 ? 'kpi-alt' : ''}>
+                            <td className="kpi-sticky-col kpi-channel">{r.c.channel}</td>
+                            <td className="kpi-num">
+                              {isEditMode ? (
+                                <input type="number" className="kpi-cell-input" value={r.c.allocation} onChange={e => updateKpiChannel(r.c.id, 'allocation', e.target.value)} />
+                              ) : `${r.c.allocation}%`}
+                            </td>
+                            <td className="kpi-num kpi-money">{vnd(r.annual)}</td>
+                            {r.q.map((v, i) => <td key={i} className="kpi-num">{compact(v)}</td>)}
+                            {r.months.map((v, i) => <td key={i} className="kpi-num kpi-month">{compact(v)}</td>)}
+                            <td>
+                              {isEditMode ? (
+                                <select className="kpi-cell-input" value={r.c.priority} onChange={e => updateKpiChannel(r.c.id, 'priority', e.target.value)}>
+                                  <option>High</option><option>Medium</option><option>Low</option>
+                                </select>
+                              ) : <span className={`kpi-pri ${priCls(r.c.priority)}`}>{r.c.priority}</span>}
+                            </td>
+                            <td className="kpi-notes-col">
+                              {isEditMode ? (
+                                <input className="kpi-cell-input kpi-notes-input" value={r.c.notes} onChange={e => updateKpiChannel(r.c.id, 'notes', e.target.value)} />
+                              ) : <span className="kpi-notes-text">{r.c.notes}</span>}
+                            </td>
+                          </tr>
+                        ))}
+                        <tr className="kpi-total-row">
+                          <td className="kpi-sticky-col">TOTAL</td>
+                          <td className="kpi-num">{allocSum.toFixed(1)}%</td>
+                          <td className="kpi-num kpi-money">{vnd(sum(r => r.annual))}</td>
+                          {tQ.map((v, i) => <td key={i} className="kpi-num">{compact(v)}</td>)}
+                          {tM.map((v, i) => <td key={i} className="kpi-num">{compact(v)}</td>)}
+                          <td></td><td></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* SECTION 2 */}
+                  <div className="kpi-section-h">Section 2 — Quarterly Strategy Breakdown</div>
+                  <div className="kpi-table-wrap">
+                    <table className="kpi-table">
+                      <thead>
+                        <tr>
+                          <th className="kpi-sticky-col">Channel</th>
+                          <th>Allocation %</th>
+                          <th>Annual Target</th>
+                          <th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th>
+                          <th>H2/H1 Growth</th>
+                          <th className="kpi-notes-col">Channel Characteristics</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map((r, idx) => (
+                          <tr key={r.c.id} className={idx % 2 ? 'kpi-alt' : ''}>
+                            <td className="kpi-sticky-col kpi-channel">{r.c.channel}</td>
+                            <td className="kpi-num">{r.c.allocation}%</td>
+                            <td className="kpi-num kpi-money">{compact(r.annual)}</td>
+                            {r.q.map((v, i) => <td key={i} className="kpi-num">{compact(v)}</td>)}
+                            <td className="kpi-num"><span className={`kpi-grow ${growthCls(r.growth)}`}>{r.growth.toFixed(2)}x</span></td>
+                            <td className="kpi-notes-col">
+                              {isEditMode ? (
+                                <input className="kpi-cell-input kpi-notes-input" value={r.c.characteristics} onChange={e => updateKpiChannel(r.c.id, 'characteristics', e.target.value)} />
+                              ) : <span className="kpi-notes-text">{r.c.characteristics}</span>}
+                            </td>
+                          </tr>
+                        ))}
+                        <tr className="kpi-total-row">
+                          <td className="kpi-sticky-col">TOTAL</td>
+                          <td className="kpi-num">{allocSum.toFixed(1)}%</td>
+                          <td className="kpi-num kpi-money">{compact(sum(r => r.annual))}</td>
+                          {tQ.map((v, i) => <td key={i} className="kpi-num">{compact(v)}</td>)}
+                          <td className="kpi-num">{(() => { const h1 = tQ[0] + tQ[1]; const g = h1 > 0 ? (tQ[2] + tQ[3]) / h1 : 0; return <span className={`kpi-grow ${growthCls(g)}`}>{g.toFixed(2)}x</span>; })()}</td>
+                          <td></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="kpi-legend">
+                    <span><b>Priority:</b> <span className="kpi-pri kpi-pri-high">High</span> <span className="kpi-pri kpi-pri-med">Medium</span> <span className="kpi-pri kpi-pri-low">Low</span></span>
+                    <span><b>Growth:</b> <span className="kpi-grow kpi-grow-up">&gt;1x</span> <span className="kpi-grow kpi-grow-flat">=1x</span> <span className="kpi-grow kpi-grow-down">&lt;1x</span></span>
+                  </div>
+                </div>
               );
             })()}
           </div>
