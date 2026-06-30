@@ -1206,8 +1206,8 @@ export default function App() {
             {/* Board Columns */}
             <div className="board mt-2">
               {COLS.map((colName, colIdx) => {
-                // Done tasks live in the "History Recorded Task" box below the board.
-                if (colIdx === 3) return null;
+                // Failed / Reject tasks live in the horizontal lane below the board.
+                if (colIdx === 4) return null;
                 const filteredColTasks = tasks.filter(t => {
                   const matchesAssignee = assigneeFilter === 'all' || t.assignee === assigneeFilter;
                   const matchesScope = scopeFilter === 'all' || t.scope === scopeFilter;
@@ -1257,68 +1257,46 @@ export default function App() {
               })}
             </div>
 
-            {/* History Recorded Task — completed (Done) tasks; still counted in Daily & Weekly reports */}
+            {/* Failed / Reject — horizontal lane below the board */}
             {(() => {
-              const historyTasks = tasks
+              const failedTasks = tasks
                 .filter(t => {
                   const matchesAssignee = assigneeFilter === 'all' || t.assignee === assigneeFilter;
                   const matchesScope = scopeFilter === 'all' || t.scope === scopeFilter;
                   const matchesSearch = !searchQuery || t.title.toLowerCase().includes(searchQuery.toLowerCase());
-                  return t.col === 3 && matchesAssignee && matchesScope && matchesSearch;
+                  return t.col === 4 && matchesAssignee && matchesScope && matchesSearch;
                 })
-                .sort((a, b) => (b.completedAt || b.deadline || '').localeCompare(a.completedAt || a.deadline || ''));
+                .sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
 
               return (
                 <div
-                  className="history-box mt-4"
+                  className="history-box lane-failed mt-4"
                   onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add('dov'); }}
                   onDragLeave={e => e.currentTarget.classList.remove('dov')}
                   onDrop={e => {
                     e.preventDefault();
                     e.currentTarget.classList.remove('dov');
                     if (draggedTaskId !== null) {
-                      updateTaskField(draggedTaskId, 'col', 3);
+                      updateTaskField(draggedTaskId, 'col', 4);
                       setDraggedTaskId(null);
                     }
                   }}
                 >
                   <div className="history-h">
                     <span className="history-title">
-                      <span className="col-dot" style={{ background: COL_COLORS[3], color: COL_COLORS[3] }}></span>
-                      History Recorded Task
+                      <span className="col-dot" style={{ background: COL_COLORS[4], color: COL_COLORS[4] }}></span>
+                      Failed / Reject
                     </span>
-                    <span className="history-sub">Task đã hoàn thành (Done) — vẫn được ghi nhận vào Daily &amp; Weekly Report</span>
-                    <span className="col-cnt ml-auto">{historyTasks.length}</span>
+                    <span className="history-sub">Task bị huỷ / từ chối — kéo task vào đây để đánh dấu Failed</span>
+                    <span className="col-cnt ml-auto">{failedTasks.length}</span>
                   </div>
-                  <div className="history-grid">
-                    {historyTasks.length === 0 ? (
+                  <div className="lane-grid">
+                    {failedTasks.length === 0 ? (
                       <div className="history-empty">
-                        Chưa có task hoàn thành. Kéo task vào đây hoặc đặt trạng thái "Done" để ghi nhận.
+                        Chưa có task nào bị Failed / Reject. Kéo task vào đây để đánh dấu.
                       </div>
                     ) : (
-                      historyTasks.map(task => (
-                        <div
-                          className="history-card task-card animate-fade-in"
-                          key={task.id}
-                          draggable={isEditMode}
-                          onDragStart={() => isEditMode && setDraggedTaskId(task.id)}
-                          onDragEnd={() => setDraggedTaskId(null)}
-                        >
-                          <div className="tc-actions edit-only">
-                            <button className="flex items-center gap-1 text-[9px]" onClick={() => handleOpenEditModal(task)}>
-                              <Edit2 size={8} /> Edit
-                            </button>
-                            <button className="btn-r flex items-center gap-1 text-[9px] px-2 py-0.5" onClick={() => handleDeleteTask(task.id)}>
-                              <Trash2 size={8} /> Del
-                            </button>
-                          </div>
-                          <div className="hc-title font-semibold">{task.title}</div>
-                          <span className="av-tag">
-                            <span className="av" style={{ background: memberColor(task.assignee), color: '#fff' }}>{memberInitial(task.assignee)}</span>
-                            {memberName(task.assignee)}
-                          </span>
-                        </div>
-                      ))
+                      failedTasks.map(task => renderTaskCard(task, 4))
                     )}
                   </div>
                 </div>

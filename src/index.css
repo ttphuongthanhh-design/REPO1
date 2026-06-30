@@ -883,6 +883,16 @@ button:active {
   margin-bottom: 0;
   border-left: 3px solid var(--color-success, #10b981);
 }
+
+/* Horizontal lane (e.g. Failed / Reject) below the board */
+.lane-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+  padding: 14px 16px 0;
+}
+.lane-grid .task-card { margin-bottom: 0; }
+.lane-failed .task-card-v2 { border-left-color: var(--color-danger, #ef4444) !important; }
 .history-empty {
   grid-column: 1 / -1;
   text-align: center;
