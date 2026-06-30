@@ -2469,7 +2469,7 @@ html:not(.dark) .add-btn.hover\:text-white:hover { color: var(--text-main) !impo
   border: 1px solid var(--panel-border); border-top: none;
   border-radius: 0 0 12px 12px; background: var(--panel-bg); box-shadow: var(--panel-shadow);
 }
-.kpi-table { width: 100%; border-collapse: collapse; min-width: 1050px; font-size: 11.5px; }
+.kpi-table { width: 100%; border-collapse: collapse; min-width: 760px; table-layout: auto; font-size: 11.5px; }
 .kpi-table thead th {
   position: sticky; top: 0; z-index: 3;
   background: #1e3a8a; color: #fff;
@@ -2500,7 +2500,17 @@ html:not(.dark) .add-btn.hover\:text-white:hover { color: var(--text-main) !impo
 }
 .kpi-cell-input:focus { border-color: var(--color-primary); }
 .kpi-notes-input { text-align: left; min-width: 180px; }
-.kpi-pri { display: inline-block; font-size: 10px; font-weight: 800; padding: 3px 10px; border-radius: 20px; border: 1px solid; }
+/* Priority column: centered, fixed comfortable width */
+.kpi-pri-th, .kpi-pri-cell { text-align: center !important; }
+.kpi-pri-cell { width: 116px; }
+.kpi-pri-select { text-align: center; text-align-last: center; font-weight: 800; cursor: pointer; }
+.kpi-pri-select.kpi-pri-high { color: #059669; border-color: rgba(16,185,129,0.5); background: rgba(16,185,129,0.1); }
+.kpi-pri-select.kpi-pri-med  { color: #2563eb; border-color: rgba(59,130,246,0.5); background: rgba(59,130,246,0.1); }
+.kpi-pri-select.kpi-pri-low  { color: #d97706; border-color: rgba(245,158,11,0.55); background: rgba(245,158,11,0.12); }
+.dark .kpi-pri-select.kpi-pri-high { color: #34d399; }
+.dark .kpi-pri-select.kpi-pri-med { color: #60a5fa; }
+.dark .kpi-pri-select.kpi-pri-low { color: #fbbf24; }
+.kpi-pri { display: inline-block; font-size: 10px; font-weight: 800; padding: 3px 12px; border-radius: 20px; border: 1px solid; min-width: 62px; text-align: center; }
 .kpi-pri-high { color: #059669; background: rgba(16,185,129,0.12); border-color: rgba(16,185,129,0.4); }
 .kpi-pri-med  { color: #2563eb; background: rgba(59,130,246,0.12); border-color: rgba(59,130,246,0.4); }
 .kpi-pri-low  { color: #d97706; background: rgba(245,158,11,0.14); border-color: rgba(245,158,11,0.45); }

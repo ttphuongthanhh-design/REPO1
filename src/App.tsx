@@ -1560,15 +1560,13 @@ export default function App() {
               const rows = kpis.channels.map(c => {
                 const annual = total * (c.allocation || 0) / 100;
                 const q = c.curve.map(w => annual * w) as number[];
-                const months = [q[0] / 3, q[0] / 3, q[0] / 3, q[1] / 3, q[1] / 3]; // T1..T5 from Q1/Q2
                 const h1 = q[0] + q[1];
                 const growth = h1 > 0 ? (q[2] + q[3]) / h1 : 0;
-                return { c, annual, q, months, growth };
+                return { c, annual, q, growth };
               });
               const allocSum = kpis.channels.reduce((s, c) => s + (c.allocation || 0), 0);
               const sum = (f: (r: typeof rows[number]) => number) => rows.reduce((s, r) => s + f(r), 0);
               const tQ = [0, 1, 2, 3].map(i => sum(r => r.q[i]));
-              const tM = [0, 1, 2, 3, 4].map(i => sum(r => r.months[i]));
               const priCls = (p: string) => p === 'High' ? 'kpi-pri-high' : p === 'Medium' ? 'kpi-pri-med' : 'kpi-pri-low';
               const growthCls = (g: number) => g > 1.0001 ? 'kpi-grow-up' : g < 0.9999 ? 'kpi-grow-down' : 'kpi-grow-flat';
 
@@ -1614,9 +1612,8 @@ export default function App() {
                           <th>Allocation %</th>
                           <th>Annual Target (VND)</th>
                           <th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th>
-                          <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th>
-                          <th>Priority</th>
-                          <th className="kpi-notes-col">Strategic Notes</th>
+                          <th className="kpi-pri-th">Priority</th>
+                          <th className="kpi-notes-col">Notes</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1630,10 +1627,9 @@ export default function App() {
                             </td>
                             <td className="kpi-num kpi-money">{vnd(r.annual)}</td>
                             {r.q.map((v, i) => <td key={i} className="kpi-num">{compact(v)}</td>)}
-                            {r.months.map((v, i) => <td key={i} className="kpi-num kpi-month">{compact(v)}</td>)}
-                            <td>
+                            <td className="kpi-pri-cell">
                               {isEditMode ? (
-                                <select className="kpi-cell-input" value={r.c.priority} onChange={e => updateKpiChannel(r.c.id, 'priority', e.target.value)}>
+                                <select className={`kpi-cell-input kpi-pri-select ${priCls(r.c.priority)}`} value={r.c.priority} onChange={e => updateKpiChannel(r.c.id, 'priority', e.target.value)}>
                                   <option>High</option><option>Medium</option><option>Low</option>
                                 </select>
                               ) : <span className={`kpi-pri ${priCls(r.c.priority)}`}>{r.c.priority}</span>}
@@ -1650,7 +1646,6 @@ export default function App() {
                           <td className="kpi-num">{allocSum.toFixed(1)}%</td>
                           <td className="kpi-num kpi-money">{vnd(sum(r => r.annual))}</td>
                           {tQ.map((v, i) => <td key={i} className="kpi-num">{compact(v)}</td>)}
-                          {tM.map((v, i) => <td key={i} className="kpi-num">{compact(v)}</td>)}
                           <td></td><td></td>
                         </tr>
                       </tbody>
