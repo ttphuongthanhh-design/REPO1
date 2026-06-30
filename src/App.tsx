@@ -2246,6 +2246,49 @@ export default function App() {
                 </div>
               )}
 
+              {/* Live Artifact — Revenue KPI Target vs Actual by year (pulled live from Target KPIs) */}
+              {(() => {
+                const fmt = (n: number) => n >= 1e9 ? (n / 1e9).toFixed(n % 1e9 === 0 ? 0 : 1) + ' tỷ' : n >= 1e6 ? (n / 1e6).toFixed(0) + ' tr' : new Intl.NumberFormat('vi-VN').format(Math.round(n || 0));
+                const yearStats = KPI_YEARS.map(y => {
+                  const yd = kpis.years[y];
+                  const target = yd ? yd.channels.reduce((s, c) => s + yd.totalTarget * (c.allocation || 0) / 100, 0) : 0;
+                  const actual = yd ? yd.channels.reduce((s, c) => s + (c.actual ? c.actual.reduce((a, b) => a + (b || 0), 0) : 0), 0) : 0;
+                  return { y, target, actual };
+                });
+                const totalT = yearStats.reduce((s, r) => s + r.target, 0);
+                const totalA = yearStats.reduce((s, r) => s + r.actual, 0);
+                const overallPct = totalT > 0 ? Math.round(totalA / totalT * 100) : 0;
+                return (
+                  <div className="panel kpi-live mt-4">
+                    <h3>
+                      <span>Revenue KPI · Target vs Actual</span>
+                      <span>Live từ tab Target KPIs · {fmt(totalA)} / {fmt(totalT)} ({overallPct}%)</span>
+                    </h3>
+                    <div className="kpi-live-list">
+                      {yearStats.map(s => {
+                        const pct = s.target > 0 ? Math.round(s.actual / s.target * 100) : 0;
+                        const cls = pct >= 100 ? 'up' : pct >= 70 ? 'mid' : 'down';
+                        return (
+                          <div className="kpi-live-row" key={s.y}>
+                            <div className="kpi-live-year">{s.y}</div>
+                            <div className="kpi-live-main">
+                              <div className="kpi-live-track">
+                                <div className={`kpi-live-fill ${cls}`} style={{ width: `${Math.min(100, s.target > 0 ? s.actual / s.target * 100 : 0)}%` }}></div>
+                              </div>
+                              <div className="kpi-live-vals">
+                                <span className="kpi-live-target">🎯 Target: <b>{fmt(s.target)}</b></span>
+                                <span className="kpi-live-actual">📈 Actual: <b>{fmt(s.actual)}</b></span>
+                                <span className={`kpi-live-pct ${cls}`}>{pct}%</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Weekly content - KPIs by Scope */}
               <div className="scope-kpi-grid mt-4">
                 {(['ae', 'si', 'pd', 'va', 'pr'] as const).map(sc => {
