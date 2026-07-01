@@ -866,15 +866,15 @@ export default function App() {
     setWeeklyFilter(getWeekInfo(`${target.getFullYear()}-${pad(target.getMonth() + 1)}-${pad(target.getDate())}`).key);
   };
 
-  // Unified deadline classification used across Kanban, Gantt, and the At-Risk panel.
-  // URGENT = past deadline · NEAR = due within 7 days · normal = further out.
+  // Unified deadline classification used across Kanban, Gantt, and the At-Risk panel (sourced from Kanban).
+  // URGENT = due in < 2 days (incl. overdue) · NEAR = due in < 6 days · NORMAL = further out.
   const getDeadlineStatus = (deadline: string) => {
     if (!deadline) return null;
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const dd = new Date(deadline); dd.setHours(0, 0, 0, 0);
     const diff = Math.round((dd.getTime() - today.getTime()) / 864e5);
-    if (diff < 0) return { kind: 'urgent' as const, label: 'URGENT', diff };
-    if (diff <= 7) return { kind: 'near' as const, label: 'NEAR', diff };
+    if (diff < 2) return { kind: 'urgent' as const, label: 'URGENT', diff };
+    if (diff < 6) return { kind: 'near' as const, label: 'NEAR', diff };
     return { kind: 'normal' as const, label: '', diff };
   };
 
@@ -1247,16 +1247,18 @@ export default function App() {
                     const statusColor = isGood ? 'text-emerald-400' : isWarning ? 'text-amber-400' : 'text-rose-400';
                     const statusBg = isGood ? 'bg-emerald-950/20' : isWarning ? 'bg-amber-950/20' : 'bg-rose-950/20';
                     const statusHex = isGood ? '#10b981' : isWarning ? '#f59e0b' : '#ef4444';
+                    // Production & Operation has a fixed blue identity; other scopes follow their status colour.
+                    const displayHex = sc === 'pr' ? '#3b82f6' : statusHex;
 
                     return (
                       <div className="scope-row" key={sc}>
-                        <div className="risk-dot" style={{ background: statusHex, color: statusHex }}></div>
+                        <div className="risk-dot" style={{ background: displayHex, color: displayHex }}></div>
                         <div className="scope-name-lbl font-semibold">{config.name}</div>
                         <div className="scope-track">
-                          <div className="scope-track-fill" style={{ width: `${pct}%`, background: statusHex }}></div>
+                          <div className="scope-track-fill" style={{ width: `${pct}%`, background: displayHex }}></div>
                         </div>
-                        <div className={`scope-pct-lbl ${statusColor}`}>{pct}%</div>
-                        <span className={`badge ${statusBg} ${statusColor} ml-2 font-bold`}>{statusText}</span>
+                        <div className="scope-pct-lbl" style={{ color: displayHex }}>{pct}%</div>
+                        <span className="badge ml-2 font-bold" style={{ color: displayHex, background: `${displayHex}1f`, border: `1px solid ${displayHex}55` }}>{statusText}</span>
                       </div>
                     );
                   })}
@@ -1347,10 +1349,10 @@ export default function App() {
                       const diff = Math.round((d.getTime() - today.getTime()) / 864e5);
                       return { t, diff };
                     })
-                    .filter(x => x.diff <= 7)            // overdue OR due within a week
-                    .sort((a, b) => a.diff - b.diff);    // most overdue first
-                  const urgentCount = atRisk.filter(x => x.diff < 0).length;   // past deadline
-                  const nearCount = atRisk.length - urgentCount;               // due in ≤7 days
+                    .filter(x => x.diff < 6)             // URGENT (<2d) or NEAR (<6d) — sourced from Kanban rule
+                    .sort((a, b) => a.diff - b.diff);    // most urgent first
+                  const urgentCount = atRisk.filter(x => x.diff < 2).length;   // due in < 2 days
+                  const nearCount = atRisk.length - urgentCount;               // due in < 6 days
 
                   return (
                     <>
@@ -1363,10 +1365,10 @@ export default function App() {
                       </h3>
                       <div className="overdue-list">
                         {atRisk.length === 0 && (
-                          <div className="text-[11px] text-muted">Không có mục nào quá hạn hoặc sắp tới hạn trong 7 ngày.</div>
+                          <div className="text-[11px] text-muted">Không có mục nào URGENT (&lt;2 ngày) hoặc NEAR (&lt;6 ngày).</div>
                         )}
                         {atRisk.map(({ t, diff }) => {
-                          const isUrgent = diff < 0;
+                          const isUrgent = diff < 2;
                           return (
                             <div className="overdue-item" key={t.id}>
                               <span className={`overdue-item-dot ${isUrgent ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]' : 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]'}`}></span>
@@ -2133,8 +2135,8 @@ export default function App() {
                 </div>
               ))}
               <div className="tl-legend-item"><div className="tl-legend-dot bg-emerald-500"></div>Completed</div>
-              <div className="tl-legend-item"><div className="tl-legend-dot bg-rose-500"></div>URGENT (quá hạn)</div>
-              <div className="tl-legend-item"><div className="tl-legend-dot bg-amber-500"></div>NEAR (≤7 ngày)</div>
+              <div className="tl-legend-item"><div className="tl-legend-dot bg-rose-500"></div>URGENT (&lt;2 ngày)</div>
+              <div className="tl-legend-item"><div className="tl-legend-dot bg-amber-500"></div>NEAR (&lt;6 ngày)</div>
               <div className="tl-legend-item"><div className="tl-legend-dot bg-slate-500"></div>Rejected</div>
               <div className="text-[10px] text-slate-400 italic ml-auto">Click on any bar to edit task directly</div>
             </div>
