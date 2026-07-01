@@ -475,6 +475,7 @@ export default function App() {
   // Task Board filter dropdowns
   const [assigneeMenuOpen, setAssigneeMenuOpen] = useState(false);
   const [scopeMenuOpen, setScopeMenuOpen] = useState(false);
+  const [timelineScopeMenuOpen, setTimelineScopeMenuOpen] = useState(false);
   const [assigneeSearch, setAssigneeSearch] = useState('');
   const [timelineScopeFilter, setTimelineScopeFilter] = useState<'all' | 'ae' | 'si' | 'pd' | 'va' | 'pr'>('all');
 
@@ -1121,6 +1122,85 @@ export default function App() {
     );
   };
 
+  // Shared filter dropdowns (Task Board / Task Tracker / Gantt Timeline)
+  const renderAssigneeDD = () => (
+    <div className="filter-dd">
+      <button
+        className={`filter-dd-btn ${assigneeFilter !== 'all' ? 'has-val' : ''}`}
+        onClick={() => { setAssigneeMenuOpen(o => !o); setScopeMenuOpen(false); setTimelineScopeMenuOpen(false); setAssigneeSearch(''); }}
+      >
+        {assigneeFilter === 'all'
+          ? <><Users size={13} /><span>All Assignees</span></>
+          : <><span className="av" style={{ background: memberColor(assigneeFilter), color: '#fff' }}>{memberInitial(assigneeFilter)}</span><span>{memberName(assigneeFilter)}</span></>}
+        <span className="filter-dd-caret">▾</span>
+      </button>
+      {assigneeMenuOpen && (
+        <>
+          <div className="filter-dd-backdrop" onClick={() => setAssigneeMenuOpen(false)}></div>
+          <div className="filter-dd-menu">
+            <input className="filter-dd-search" autoFocus placeholder="Tìm thành viên…" value={assigneeSearch} onChange={e => setAssigneeSearch(e.target.value)} />
+            <div className="filter-dd-list">
+              <button className={`filter-dd-item ${assigneeFilter === 'all' ? 'sel' : ''}`} onClick={() => { setAssigneeFilter('all'); setAssigneeMenuOpen(false); }}>
+                <span className="fdd-ico"><Users size={13} /></span>
+                <span className="fdd-label">All Assignees</span>
+                {assigneeFilter === 'all' && <Check size={13} className="fdd-check" />}
+              </button>
+              {members.filter(m => !assigneeSearch || m.name.toLowerCase().includes(assigneeSearch.toLowerCase())).map(m => (
+                <button key={m.id} className={`filter-dd-item ${assigneeFilter === m.id ? 'sel' : ''}`} onClick={() => { setAssigneeFilter(m.id); setAssigneeMenuOpen(false); }}>
+                  <span className="av" style={{ background: m.color, color: '#fff' }}>{memberInitial(m.id)}</span>
+                  <span className="fdd-label">{m.name}</span>
+                  {assigneeFilter === m.id && <Check size={13} className="fdd-check" />}
+                </button>
+              ))}
+              {members.filter(m => !assigneeSearch || m.name.toLowerCase().includes(assigneeSearch.toLowerCase())).length === 0 && (
+                <div className="filter-dd-empty">Không tìm thấy.</div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+
+  const renderScopeDD = (
+    value: 'all' | 'ae' | 'si' | 'pd' | 'va' | 'pr',
+    setValue: (v: 'all' | 'ae' | 'si' | 'pd' | 'va' | 'pr') => void,
+    open: boolean,
+    setOpen: (v: boolean) => void,
+  ) => (
+    <div className="filter-dd">
+      <button
+        className={`filter-dd-btn ${value !== 'all' ? 'has-val' : ''}`}
+        onClick={() => { const willOpen = !open; setAssigneeMenuOpen(false); setScopeMenuOpen(false); setTimelineScopeMenuOpen(false); setOpen(willOpen); }}
+      >
+        <span className="filter-dd-swatch" style={{ background: value === 'all' ? 'transparent' : SCOPE_CONFIGS[value].color, borderColor: value === 'all' ? 'var(--panel-border)' : 'transparent' }}></span>
+        <span>{value === 'all' ? 'All Scopes' : SCOPES[value]}</span>
+        <span className="filter-dd-caret">▾</span>
+      </button>
+      {open && (
+        <>
+          <div className="filter-dd-backdrop" onClick={() => setOpen(false)}></div>
+          <div className="filter-dd-menu">
+            <div className="filter-dd-list">
+              <button className={`filter-dd-item ${value === 'all' ? 'sel' : ''}`} onClick={() => { setValue('all'); setOpen(false); }}>
+                <span className="filter-dd-swatch" style={{ background: 'transparent', borderColor: 'var(--panel-border)' }}></span>
+                <span className="fdd-label">All Scopes</span>
+                {value === 'all' && <Check size={13} className="fdd-check" />}
+              </button>
+              {(['ae', 'si', 'pd', 'va', 'pr'] as const).map(sc => (
+                <button key={sc} className={`filter-dd-item ${value === sc ? 'sel' : ''}`} onClick={() => { setValue(sc); setOpen(false); }}>
+                  <span className="filter-dd-swatch" style={{ background: SCOPE_CONFIGS[sc].color, borderColor: 'transparent' }}></span>
+                  <span className="fdd-label">{SCOPES[sc]}</span>
+                  {value === sc && <Check size={13} className="fdd-check" />}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+
   return (
     <div className={`min-h-screen pb-12 ${isEditMode ? '' : 'read-only'}`}>
       {/* Navigation */}
@@ -1433,86 +1513,11 @@ export default function App() {
             <div className="top-bar">
               <h2>Task Board</h2>
               <div className="board-filters">
-                {/* Assignee dropdown filter */}
-                <div className="filter-dd">
-                  <button
-                    className={`filter-dd-btn ${assigneeFilter !== 'all' ? 'has-val' : ''}`}
-                    onClick={() => { setAssigneeMenuOpen(o => !o); setScopeMenuOpen(false); setAssigneeSearch(''); }}
-                  >
-                    {assigneeFilter === 'all'
-                      ? <><Users size={13} /><span>All Assignees</span></>
-                      : <><span className="av" style={{ background: memberColor(assigneeFilter), color: '#fff' }}>{memberInitial(assigneeFilter)}</span><span>{memberName(assigneeFilter)}</span></>}
-                    <span className="filter-dd-caret">▾</span>
-                  </button>
-                  {assigneeMenuOpen && (
-                    <>
-                      <div className="filter-dd-backdrop" onClick={() => setAssigneeMenuOpen(false)}></div>
-                      <div className="filter-dd-menu">
-                        <input
-                          className="filter-dd-search"
-                          autoFocus
-                          placeholder="Tìm thành viên…"
-                          value={assigneeSearch}
-                          onChange={e => setAssigneeSearch(e.target.value)}
-                        />
-                        <div className="filter-dd-list">
-                          <button className={`filter-dd-item ${assigneeFilter === 'all' ? 'sel' : ''}`} onClick={() => { setAssigneeFilter('all'); setAssigneeMenuOpen(false); }}>
-                            <span className="fdd-ico"><Users size={13} /></span>
-                            <span className="fdd-label">All Assignees</span>
-                            {assigneeFilter === 'all' && <Check size={13} className="fdd-check" />}
-                          </button>
-                          {members.filter(m => !assigneeSearch || m.name.toLowerCase().includes(assigneeSearch.toLowerCase())).map(m => (
-                            <button key={m.id} className={`filter-dd-item ${assigneeFilter === m.id ? 'sel' : ''}`} onClick={() => { setAssigneeFilter(m.id); setAssigneeMenuOpen(false); }}>
-                              <span className="av" style={{ background: m.color, color: '#fff' }}>{memberInitial(m.id)}</span>
-                              <span className="fdd-label">{m.name}</span>
-                              {assigneeFilter === m.id && <Check size={13} className="fdd-check" />}
-                            </button>
-                          ))}
-                          {members.filter(m => !assigneeSearch || m.name.toLowerCase().includes(assigneeSearch.toLowerCase())).length === 0 && (
-                            <div className="filter-dd-empty">Không tìm thấy.</div>
-                          )}
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-
+                {renderAssigneeDD()}
                 <button className="fb fb-add edit-only" onClick={openMemberModal} title="Thêm thành viên">
                   <Plus size={12} />
                 </button>
-
-                {/* Scope dropdown filter */}
-                <div className="filter-dd">
-                  <button
-                    className={`filter-dd-btn ${scopeFilter !== 'all' ? 'has-val' : ''}`}
-                    onClick={() => { setScopeMenuOpen(o => !o); setAssigneeMenuOpen(false); }}
-                  >
-                    <span className="filter-dd-swatch" style={{ background: scopeFilter === 'all' ? 'transparent' : SCOPE_CONFIGS[scopeFilter].color, borderColor: scopeFilter === 'all' ? 'var(--panel-border)' : 'transparent' }}></span>
-                    <span>{scopeFilter === 'all' ? 'All Scopes' : SCOPES[scopeFilter]}</span>
-                    <span className="filter-dd-caret">▾</span>
-                  </button>
-                  {scopeMenuOpen && (
-                    <>
-                      <div className="filter-dd-backdrop" onClick={() => setScopeMenuOpen(false)}></div>
-                      <div className="filter-dd-menu">
-                        <div className="filter-dd-list">
-                          <button className={`filter-dd-item ${scopeFilter === 'all' ? 'sel' : ''}`} onClick={() => { setScopeFilter('all'); setScopeMenuOpen(false); }}>
-                            <span className="filter-dd-swatch" style={{ background: 'transparent', borderColor: 'var(--panel-border)' }}></span>
-                            <span className="fdd-label">All Scopes</span>
-                            {scopeFilter === 'all' && <Check size={13} className="fdd-check" />}
-                          </button>
-                          {(['ae', 'si', 'pd', 'va', 'pr'] as const).map(sc => (
-                            <button key={sc} className={`filter-dd-item ${scopeFilter === sc ? 'sel' : ''}`} onClick={() => { setScopeFilter(sc); setScopeMenuOpen(false); }}>
-                              <span className="filter-dd-swatch" style={{ background: SCOPE_CONFIGS[sc].color, borderColor: 'transparent' }}></span>
-                              <span className="fdd-label">{SCOPES[sc]}</span>
-                              {scopeFilter === sc && <Check size={13} className="fdd-check" />}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
+                {renderScopeDD(scopeFilter, setScopeFilter, scopeMenuOpen, setScopeMenuOpen)}
               </div>
               <div className="search-wrap ml-auto">
                 <input 
@@ -1672,20 +1677,9 @@ export default function App() {
                 <>
                   <div className="top-bar">
                     <h2>Task Tracker</h2>
-                    <div className="filters">
-                      <button className={`fb ${assigneeFilter === 'all' ? 'active' : ''}`} onClick={() => setAssigneeFilter('all')}>All Assignees</button>
-                      {members.map(mem => (
-                        <button key={mem.id} className={`fb fb-member ${assigneeFilter === mem.id ? 'active' : ''}`} onClick={() => setAssigneeFilter(mem.id)}>
-                          <span className="fb-dot" style={{ background: mem.color }}></span>
-                          {mem.name.charAt(0) + mem.name.slice(1).toLowerCase()}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="filters pl-3 border-l border-white/10">
-                      <button className={`fb ${scopeFilter === 'all' ? 'active' : ''}`} onClick={() => setScopeFilter('all')}>All Scopes</button>
-                      {(['ae', 'si', 'pd', 'va', 'pr'] as const).map(sc => (
-                        <button key={sc} className={`fb ${scopeFilter === sc ? 'active' : ''}`} onClick={() => setScopeFilter(sc)}>{SCOPES[sc]}</button>
-                      ))}
+                    <div className="board-filters">
+                      {renderAssigneeDD()}
+                      {renderScopeDD(scopeFilter, setScopeFilter, scopeMenuOpen, setScopeMenuOpen)}
                     </div>
                     <div className="search-wrap ml-auto">
                       <input placeholder="🔍 Search tasks..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
@@ -2022,11 +2016,8 @@ export default function App() {
           <div className="page active">
             <div className="tl-controls">
               <h2>Gantt Timeline</h2>
-              <div className="tl-scope-tabs">
-                <button className={`tl-tab ${timelineScopeFilter === 'all' ? 'active' : ''}`} onClick={() => setTimelineScopeFilter('all')}>All Scopes</button>
-                {(['ae', 'si', 'pd', 'va', 'pr'] as const).map(sc => (
-                  <button key={sc} className={`tl-tab ${timelineScopeFilter === sc ? 'active' : ''}`} onClick={() => setTimelineScopeFilter(sc)}>{SCOPES[sc]}</button>
-                ))}
+              <div className="board-filters">
+                {renderScopeDD(timelineScopeFilter, setTimelineScopeFilter, timelineScopeMenuOpen, setTimelineScopeMenuOpen)}
               </div>
               <div className="ml-auto flex gap-2">
                 <button onClick={() => handleShiftTimeline(-14)}><ChevronLeft size={12} /> 2w</button>
