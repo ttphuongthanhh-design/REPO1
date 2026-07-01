@@ -932,10 +932,10 @@ button:active {
 /* ===== Compact task card (v2) — board + history ===== */
 .task-card-v2 {
   border-left-width: 3px;
-  padding: 11px 12px;
+  padding: 9px 11px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 5px;
 }
 .task-card-v2 .tc-top {
   display: flex;
@@ -2849,10 +2849,10 @@ html:not(.dark) .add-btn.hover\:text-white:hover { color: var(--text-main) !impo
 
 /* Compact LINK button on task cards */
 .tc-linkbtn {
-  display: inline-flex; align-items: center; gap: 5px; width: fit-content; margin-top: 10px;
-  background: var(--color-primary); color: #fff; border: none; border-radius: 7px;
-  padding: 5px 12px; font-size: 10px; font-weight: 800; letter-spacing: 0.6px;
-  text-decoration: none; box-shadow: 0 2px 8px var(--color-primary-glow);
+  display: inline-flex; align-items: center; gap: 4px; width: fit-content; margin-top: 2px;
+  background: var(--color-primary); color: #fff; border: none; border-radius: 6px;
+  padding: 3px 9px; font-size: 9px; font-weight: 800; letter-spacing: 0.5px;
+  text-decoration: none; box-shadow: 0 1px 4px var(--color-primary-glow);
   transition: filter 0.15s, transform 0.15s;
 }
 .tc-linkbtn:hover { filter: brightness(1.1); transform: translateY(-1px); }

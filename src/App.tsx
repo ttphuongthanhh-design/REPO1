@@ -1009,7 +1009,7 @@ export default function App() {
             onClick={e => e.stopPropagation()}
             title={task.link}
           >
-            <LinkIcon size={11} /> LINK
+            <LinkIcon size={9} /> LINK
           </a>
         )}
 
