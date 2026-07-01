@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { 
   Plus, 
-  Trash2, 
-  Edit2, 
+  Trash2,
+  Edit2,
+  Copy,
+  MoreHorizontal,
   Calendar, 
   Search, 
   Check, 
@@ -683,6 +685,14 @@ export default function App() {
     }
   };
 
+  const handleDuplicateTask = (task: Task) => {
+    if (!isEditMode) return;
+    const nextId = tasks.reduce((max, t) => Math.max(max, t.id), 0) + 1;
+    const copy: Task = { ...task, id: nextId, title: `${task.title} (copy)`, updatedAt: new Date().toISOString() };
+    setTasks(prev => [...prev, copy]);
+    logActivity(nextId, copy.title, 'created', `Nhân bản từ "${task.title}"`);
+  };
+
   const handleSaveTask = (e: React.FormEvent) => {
     e.preventDefault();
     if (!taskForm.title.trim()) return alert('Please enter a task title.');
@@ -961,13 +971,13 @@ export default function App() {
         style={{ borderLeftColor: scopeColor }}
         onClick={() => setExpandedTaskId(expanded ? null : task.id)}
       >
-        <div className="tc-actions edit-only" onClick={e => e.stopPropagation()}>
-          <button className="flex items-center gap-1 text-[9px]" onClick={() => handleOpenEditModal(task)}>
-            <Edit2 size={8} /> Edit
-          </button>
-          <button className="btn-r flex items-center gap-1 text-[9px] px-2 py-0.5" onClick={() => handleDeleteTask(task.id)}>
-            <Trash2 size={8} /> Del
-          </button>
+        <div className="tc-menu edit-only" onClick={e => e.stopPropagation()}>
+          <button className="tc-menu-trigger" title="Thao tác"><MoreHorizontal size={13} /></button>
+          <div className="tc-menu-pop">
+            <button className="tc-menu-item" onClick={() => handleOpenEditModal(task)}><Edit2 size={11} /> Edit</button>
+            <button className="tc-menu-item" onClick={() => handleDuplicateTask(task)}><Copy size={11} /> Duplicate</button>
+            <button className="tc-menu-item danger" onClick={() => handleDeleteTask(task.id)}><Trash2 size={11} /> Delete</button>
+          </div>
         </div>
 
         {/* Row 1: title + priority */}

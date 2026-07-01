@@ -2857,3 +2857,29 @@ html:not(.dark) .add-btn.hover\:text-white:hover { color: var(--text-main) !impo
 }
 .tc-linkbtn:hover { filter: brightness(1.1); transform: translateY(-1px); }
 .tc-linkbtn svg { flex-shrink: 0; }
+
+/* Task card actions — single trigger with hover-out menu (Edit / Duplicate / Delete) */
+.tc-menu { position: absolute; top: 7px; right: 7px; z-index: 6; display: none; }
+.task-card:hover .tc-menu { display: block; }
+.tc-menu-trigger {
+  width: 24px; height: 22px; padding: 0; border-radius: 6px;
+  background: var(--bg-secondary); border: 1px solid var(--panel-border); color: var(--text-muted);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.tc-menu-trigger:hover { color: var(--text-main); border-color: var(--color-primary); background: var(--bg-primary); transform: none; }
+.tc-menu-pop {
+  position: absolute; top: 100%; right: 0; margin-top: 0;
+  background: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 10px;
+  box-shadow: 0 10px 26px rgba(0,0,0,0.22); padding: 4px; min-width: 132px;
+  display: none; flex-direction: column; gap: 2px; z-index: 7;
+}
+.tc-menu:hover .tc-menu-pop { display: flex; }
+.tc-menu-item {
+  display: flex; align-items: center; gap: 8px; width: 100%; justify-content: flex-start;
+  background: transparent; border: none; color: var(--text-main); border-radius: 7px;
+  padding: 7px 10px; font-size: 11.5px; font-weight: 600;
+}
+.tc-menu-item:hover { background: var(--bg-secondary); transform: none; }
+.tc-menu-item svg { flex-shrink: 0; }
+.tc-menu-item.danger { color: #ef4444; }
+.tc-menu-item.danger:hover { background: rgba(239,68,68,0.12); }
