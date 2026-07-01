@@ -2883,3 +2883,88 @@ html:not(.dark) .add-btn.hover\:text-white:hover { color: var(--text-main) !impo
 .tc-menu-item svg { flex-shrink: 0; }
 .tc-menu-item.danger { color: #ef4444; }
 .tc-menu-item.danger:hover { background: rgba(239,68,68,0.12); }
+
+/* ============================================================
+   MOBILE-FIRST OPTIMIZATION (≤ 640px, refined ≤ 400px)
+   Preserves desktop design; only refines small screens.
+   ============================================================ */
+@media (max-width: 640px) {
+  /* No accidental horizontal scroll of the whole page (inner scroll areas still scroll) */
+  html, body { overflow-x: hidden; }
+
+  /* Page & panel spacing */
+  main { padding-left: 14px !important; padding-right: 14px !important; margin-top: 16px !important; }
+  .page { padding: 0 !important; }
+  .panel { padding: 16px; border-radius: 14px; }
+
+  /* Anti-zoom on focus (iOS keeps ≥16px) + comfortable, readable inputs */
+  input, select, textarea { font-size: 16px; }
+  .fg label { font-size: 12.5px; }
+  .fg input, .fg select, .fg textarea { min-height: 44px; padding: 11px 12px; }
+
+  /* Touch targets on primary controls (≥44px) with comfortable spacing */
+  .nav-tab { min-height: 42px; display: inline-flex; align-items: center; }
+  .fb, .kpi-year-btn, .kpi-combo-toggle button, .kpi-combo-years button { min-height: 38px; display: inline-flex; align-items: center; }
+  .btn-p, .btn-g, .btn-r, .lock-pill, .btn-add-custom-subtype { min-height: 44px; }
+  .st-box-btn, .st-row-addbtn { min-height: 44px; }
+
+  /* Multi-column layouts → single / simplified column */
+  .dash-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .dash-row, .dash-row-3 { grid-template-columns: 1fr; gap: 14px; }
+  .scope-kpi-grid { grid-template-columns: 1fr; }
+  .summary-grid { grid-template-columns: repeat(2, 1fr); }
+  .kpi-live-summary { grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .input-form { grid-template-columns: 1fr; }
+  .fg-row { grid-template-columns: 1fr; gap: 0; }
+
+  /* Dashboard cards */
+  .dash-card { padding: 16px; }
+  .dash-card .dc-val { font-size: 24px; }
+
+  /* Section titles scale down but stay clear */
+  .top-bar h2, .tl-controls h2, .daily-header h2, .weekly-header h2, .input-head h2, .panel h3 span:first-child { font-size: 17px; }
+
+  /* Charts stay readable */
+  .velocity-bar { height: 100px; }
+
+  /* Modals fit entirely in the viewport */
+  .modal { width: 94vw; max-width: 94vw; max-height: 88vh; padding: 18px; border-radius: 16px; }
+  .modal.modal-sm { width: 94vw; max-width: 94vw; }
+  .color-swatches { gap: 10px; }
+
+  /* Tables & scroll containers never exceed the viewport (scroll inside) */
+  .tracker-table-wrap, .kpi-table-wrap, .daily-section, .gantt-container, .kpi-combo-wrap { max-width: 100%; }
+
+  /* Card action menu: reachable on touch (no hover needed to reveal trigger) */
+  .tc-menu { display: block; }
+  .tc-menu-trigger { width: 30px; height: 28px; }
+  .tc-menu-pop { min-width: 148px; }
+  .tc-menu-item { padding: 11px 12px; font-size: 13px; }
+
+  /* Kanban columns comfortably wide, snap-scroll horizontally */
+  .board { grid-template-columns: repeat(4, 86%); scroll-snap-type: x proximity; }
+  .col { scroll-snap-align: start; min-height: 300px; }
+
+  /* Legends wrap tidily */
+  .kpi-combo-legend, .tl-legend, .kpi-legend, .kpi-chart-legend { gap: 8px 12px; }
+
+  /* Sub-type dropdown */
+  .st-box-menu { max-height: 200px; }
+  .st-row-txt { font-size: 14px; }
+
+  /* Daily Task Input readability */
+  .input-task-title { font-size: 14px; }
+  .input-task-comment { min-width: 0; }
+}
+
+@media (max-width: 400px) {
+  .dash-grid { grid-template-columns: 1fr; }
+  .stats { grid-template-columns: repeat(2, 1fr); }
+  .summary-grid { grid-template-columns: 1fr 1fr; }
+  .kpi-live-summary { grid-template-columns: 1fr 1fr; }
+  .kpi-live-summary .kls-track { grid-column: 1 / -1; }
+  .board { grid-template-columns: repeat(4, 90%); }
+  .nav-logo { font-size: 12px; }
+  .dash-card .dc-val { font-size: 22px; }
+  .modal { padding: 16px; }
+}
