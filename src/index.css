@@ -1140,7 +1140,7 @@ button:active {
   font-size: 12px;
 }
 .activity-item:last-child { border-bottom: none; }
-.activity-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 6px currentColor; }
+.activity-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; box-shadow: none; }
 .activity-type { font-weight: 700; flex-shrink: 0; min-width: 120px; }
 .activity-title { font-weight: 600; color: var(--text-main); flex-shrink: 0; }
 .activity-detail { color: var(--text-muted); flex: 1; }
@@ -1179,13 +1179,13 @@ button:active {
   align-items: center;
 }
 .col-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   margin-right: 8px;
   display: inline-block;
   flex-shrink: 0;
-  box-shadow: 0 0 6px currentColor;
+  box-shadow: none;
 }
 .col-cnt {
   background: var(--bg-primary);

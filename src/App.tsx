@@ -1516,51 +1516,6 @@ export default function App() {
               })}
             </div>
 
-            {/* Failed / Reject — horizontal lane below the board */}
-            {(() => {
-              const failedTasks = tasks
-                .filter(t => {
-                  const matchesAssignee = assigneeFilter === 'all' || t.assignee === assigneeFilter;
-                  const matchesScope = scopeFilter === 'all' || t.scope === scopeFilter;
-                  const matchesSearch = !searchQuery || t.title.toLowerCase().includes(searchQuery.toLowerCase());
-                  return t.col === 4 && matchesAssignee && matchesScope && matchesSearch;
-                })
-                .sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
-
-              return (
-                <div
-                  className="history-box lane-failed mt-4"
-                  onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add('dov'); }}
-                  onDragLeave={e => e.currentTarget.classList.remove('dov')}
-                  onDrop={e => {
-                    e.preventDefault();
-                    e.currentTarget.classList.remove('dov');
-                    if (draggedTaskId !== null) {
-                      updateTaskField(draggedTaskId, 'col', 4);
-                      setDraggedTaskId(null);
-                    }
-                  }}
-                >
-                  <div className="history-h">
-                    <span className="history-title">
-                      <span className="col-dot" style={{ background: COL_COLORS[4], color: COL_COLORS[4] }}></span>
-                      Failed / Reject
-                    </span>
-                    <span className="history-sub">Task bị huỷ / từ chối — kéo task vào đây để đánh dấu Failed</span>
-                    <span className="col-cnt ml-auto">{failedTasks.length}</span>
-                  </div>
-                  <div className="lane-grid">
-                    {failedTasks.length === 0 ? (
-                      <div className="history-empty">
-                        Chưa có task nào bị Failed / Reject. Kéo task vào đây để đánh dấu.
-                      </div>
-                    ) : (
-                      failedTasks.map(task => renderTaskCard(task, 4))
-                    )}
-                  </div>
-                </div>
-              );
-            })()}
           </div>
         )}
 
