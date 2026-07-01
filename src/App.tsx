@@ -541,6 +541,8 @@ export default function App() {
   const [expandedTaskId, setExpandedTaskId] = useState<number | null>(null); // card whose details are open
   const [newSubtypeInput, setNewSubtypeInput] = useState('');
   const [isAddingSubtype, setIsAddingSubtype] = useState(false);
+  const [editingSubtype, setEditingSubtype] = useState<string | null>(null);
+  const [editSubtypeInput, setEditSubtypeInput] = useState('');
 
   // Member management modal
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
@@ -779,6 +781,17 @@ export default function App() {
     if (taskForm.scope === scope && taskForm.subtype === val) {
       setTaskForm(prev => ({ ...prev, subtype: '' }));
     }
+  };
+
+  const handleRenameSubtype = (scope: 'ae' | 'si' | 'pd' | 'va' | 'pr', oldVal: string, newVal: string) => {
+    setSubtypes(prev => ({ ...prev, [scope]: [...new Set(prev[scope].map(s => s === oldVal ? newVal : s))] }));
+    setTasks(prev => prev.map(t => t.scope === scope && t.subtype === oldVal ? { ...t, subtype: newVal } : t));
+    setTaskForm(prev => prev.subtype === oldVal ? { ...prev, subtype: newVal } : prev);
+  };
+  const commitRenameSubtype = (oldVal: string) => {
+    const nv = editSubtypeInput.trim();
+    setEditingSubtype(null);
+    if (nv && nv !== oldVal) handleRenameSubtype(taskForm.scope, oldVal, nv);
   };
 
   // Shifting Gantt Window
@@ -2548,6 +2561,17 @@ export default function App() {
                 onChange={e => setTaskForm(prev => ({ ...prev, link: e.target.value }))}
                 placeholder="https://..."
               />
+              {taskForm.link && taskForm.link.trim() && (() => {
+                const raw = taskForm.link.trim();
+                let short = raw.replace(/^https?:\/\/(www\.)?/i, '').replace(/\/+$/, '');
+                if (short.length > 46) short = short.slice(0, 30) + '…' + short.slice(-12);
+                const href = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+                return (
+                  <a className="link-preview" href={href} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>
+                    <LinkIcon size={11} /> <span>{short}</span>
+                  </a>
+                );
+              })()}
             </div>
 
             <div className="fg-row">
@@ -2571,70 +2595,46 @@ export default function App() {
               </div>
 
               <div className="fg">
-                <label>Sub-type</label>
-                {!isAddingSubtype ? (
-                  <>
-                    <select 
-                      value={taskForm.subtype}
-                      onChange={e => setTaskForm(prev => ({ ...prev, subtype: e.target.value }))}
-                    >
-                      <option value="">— Select —</option>
-                      {subtypes[taskForm.scope].map(st => (
-                        <option value={st} key={st}>{st}</option>
-                      ))}
-                    </select>
-                    
-                    <button 
-                      type="button" 
-                      className="btn-add-custom-subtype"
-                      onClick={() => setIsAddingSubtype(true)}
-                    >
-                      + Add custom sub-type
-                    </button>
-                  </>
-                ) : (
-                  <div className="flex gap-2">
-                    <input 
-                      placeholder="New subtype name..." 
-                      value={newSubtypeInput}
-                      onChange={e => setNewSubtypeInput(e.target.value)}
-                      className="flex-1"
-                    />
-                    <button 
-                      type="button" 
-                      className="btn-p py-1 px-3 border-none font-bold"
-                      onClick={handleAddSubtype}
-                    >
-                      +
-                    </button>
-                    <button 
-                      type="button" 
-                      className="btn-cancel-subtype"
-                      onClick={() => setIsAddingSubtype(false)}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Subtype list management */}
-            <div className="fg mt-2">
-              <label>Subtypes List Management</label>
-              <div className="subtype-list">
-                {subtypes[taskForm.scope].map(st => (
-                  <div className="subtype-item" key={st}>
-                    <span>{st}</span>
-                    <button 
-                      type="button" 
-                      className="text-red-400 border-none bg-transparent hover:text-red-300 font-bold text-xs"
-                      onClick={() => handleRemoveSubtype(taskForm.scope, st)}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
+                <label>Sub-type <span className="st-hint">(bấm chọn · nhấp đôi để sửa · − để xoá)</span></label>
+                <div className="subtype-chips">
+                  {subtypes[taskForm.scope].map(st => (
+                    <div className={`st-chip ${taskForm.subtype === st ? 'active' : ''}`} key={st}>
+                      {editingSubtype === st ? (
+                        <input
+                          autoFocus
+                          className="st-chip-edit"
+                          value={editSubtypeInput}
+                          onChange={e => setEditSubtypeInput(e.target.value)}
+                          onBlur={() => commitRenameSubtype(st)}
+                          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commitRenameSubtype(st); } if (e.key === 'Escape') setEditingSubtype(null); }}
+                        />
+                      ) : (
+                        <span
+                          className="st-chip-txt"
+                          onClick={() => setTaskForm(prev => ({ ...prev, subtype: st }))}
+                          onDoubleClick={() => { setEditingSubtype(st); setEditSubtypeInput(st); }}
+                          title="Bấm chọn · nhấp đôi để sửa"
+                        >{st}</span>
+                      )}
+                      <button type="button" className="st-chip-del" onClick={() => handleRemoveSubtype(taskForm.scope, st)} title="Xoá sub-type">−</button>
+                    </div>
+                  ))}
+                  {isAddingSubtype ? (
+                    <div className="st-chip st-chip-adding">
+                      <input
+                        autoFocus
+                        className="st-chip-edit"
+                        placeholder="Tên sub-type mới…"
+                        value={newSubtypeInput}
+                        onChange={e => setNewSubtypeInput(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddSubtype(); } if (e.key === 'Escape') { setIsAddingSubtype(false); setNewSubtypeInput(''); } }}
+                      />
+                      <button type="button" className="st-chip-ok" onClick={handleAddSubtype} title="Thêm">+</button>
+                    </div>
+                  ) : (
+                    <button type="button" className="st-chip-add" onClick={() => setIsAddingSubtype(true)} title="Thêm sub-type">+</button>
+                  )}
+                </div>
               </div>
             </div>
 

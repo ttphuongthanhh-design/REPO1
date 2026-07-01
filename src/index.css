@@ -2734,3 +2734,48 @@ html:not(.dark) .add-btn.hover\:text-white:hover { color: var(--text-main) !impo
   .kls-track { grid-column: 1 / -1; }
   .kls-val { font-size: 15px; }
 }
+
+/* Link shortened preview (task modal) */
+.link-preview {
+  display: inline-flex; align-items: center; gap: 5px; margin-top: 8px;
+  max-width: 100%; color: var(--color-primary); background: var(--color-primary-glow);
+  border: 1px solid var(--panel-border); border-radius: 8px; padding: 4px 10px;
+  font-size: 11px; font-weight: 600; text-decoration: none; overflow: hidden;
+}
+.link-preview span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.link-preview:hover { border-color: var(--color-primary); text-decoration: underline; }
+
+/* Sub-type chips with inline add / edit / delete */
+.st-hint { font-size: 10px; font-weight: 500; color: var(--text-muted); text-transform: none; letter-spacing: 0; }
+.subtype-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.st-chip {
+  display: inline-flex; align-items: center; gap: 2px;
+  background: var(--bg-secondary); border: 1px solid var(--panel-border);
+  border-radius: 16px; padding: 2px 2px 2px 4px; font-size: 12px;
+  transition: border-color 0.15s, background 0.15s;
+}
+.st-chip.active { border-color: var(--color-primary); background: var(--color-primary-glow); }
+.st-chip-txt { cursor: pointer; padding: 4px 6px; color: var(--text-main); font-weight: 600; border-radius: 12px; user-select: none; }
+.st-chip.active .st-chip-txt { color: var(--color-primary); }
+.st-chip-del {
+  width: 18px; height: 18px; padding: 0; border-radius: 50%; border: none;
+  background: transparent; color: var(--text-muted); font-size: 15px; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.st-chip-del:hover { background: rgba(239,68,68,0.15); color: #ef4444; transform: none; }
+.st-chip-add {
+  width: 28px; height: 28px; padding: 0; border-radius: 50%;
+  border: 1px dashed var(--panel-border); background: transparent; color: var(--color-primary);
+  font-size: 16px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center;
+}
+.st-chip-add:hover { border-color: var(--color-primary); background: var(--color-primary-glow); }
+.st-chip-adding { padding: 2px 4px; }
+.st-chip-edit {
+  width: 130px; background: var(--input-bg); color: var(--text-main);
+  border: 1px solid var(--color-primary); border-radius: 12px; padding: 4px 8px; font-size: 12px; outline: none;
+}
+.st-chip-ok {
+  width: 22px; height: 22px; padding: 0; border-radius: 50%; border: none; margin-left: 2px;
+  background: var(--color-primary); color: #fff; font-size: 15px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center;
+}
