@@ -1791,6 +1791,8 @@ export default function App() {
               };
               const total = kpiYearData.totalTarget || 0;
               const allChannels = kpiYearData.channels;
+              const actualTotal = allChannels.reduce((s, c) => s + (c.actual ? c.actual.reduce((a, b) => a + (b || 0), 0) : 0), 0);
+              const achPct = total > 0 ? Math.round(actualTotal / total * 100) : 0;
               const visibleChannels = allChannels.filter(c => !kpiChannelFilter || kpiChannelFilter.includes(c.id));
               const rows = visibleChannels.map(c => {
                 const annual = total * (c.allocation || 0) / 100;
@@ -1821,20 +1823,27 @@ export default function App() {
                         ))}
                       </div>
                     </div>
-                    <div className="kpi-total-box">
-                      <div className="kpi-total-lbl">Total Annual Target (VND) · {kpiYear}</div>
-                      {isEditMode ? (
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          className="kpi-total-input"
-                          value={vnd(total)}
-                          onChange={e => updateKpiTotal(e.target.value.replace(/[^\d]/g, ''))}
-                        />
-                      ) : (
-                        <div className="kpi-total-val">{vnd(total)} ₫</div>
-                      )}
-                      <div className="kpi-total-sub">{compact(total)} · {kpiYear}</div>
+                    <div className="kpi-total-boxes">
+                      <div className="kpi-total-box">
+                        <div className="kpi-total-lbl">Total Annual Target (VND) · {kpiYear}</div>
+                        {isEditMode ? (
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            className="kpi-total-input"
+                            value={vnd(total)}
+                            onChange={e => updateKpiTotal(e.target.value.replace(/[^\d]/g, ''))}
+                          />
+                        ) : (
+                          <div className="kpi-total-val">{vnd(total)} ₫</div>
+                        )}
+                        <div className="kpi-total-sub">{compact(total)} · {kpiYear}</div>
+                      </div>
+                      <div className="kpi-total-box kpi-results-box">
+                        <div className="kpi-total-lbl">Total Annual Results (VND) · {kpiYear}</div>
+                        <div className="kpi-total-val">{vnd(actualTotal)} ₫</div>
+                        <div className="kpi-total-sub">{compact(actualTotal)} · đạt {achPct}%</div>
+                      </div>
                     </div>
                   </div>
 

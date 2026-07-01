@@ -3017,3 +3017,13 @@ html:not(.dark) .add-btn.hover\:text-white:hover { color: var(--text-main) !impo
   .filter-dd-search { font-size: 16px; min-height: 44px; }
   .filter-dd-menu { min-width: 240px; }
 }
+
+/* KPI titlebar: Target + Results boxes side by side */
+.kpi-total-boxes { display: flex; align-items: stretch; gap: 12px; flex-wrap: wrap; }
+.kpi-results-box { background: rgba(16,185,129,0.12); border-color: rgba(16,185,129,0.4); }
+.kpi-results-box .kpi-total-lbl { color: #6ee7b7; }
+.kpi-results-box .kpi-total-sub { color: #6ee7b7; }
+@media (max-width: 768px) {
+  .kpi-total-boxes { width: 100%; }
+  .kpi-total-boxes .kpi-total-box { flex: 1 1 100%; }
+}
