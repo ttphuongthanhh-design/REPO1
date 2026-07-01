@@ -484,9 +484,9 @@ export default function App() {
   // Weekly Report filter: a Monday key (yyyy-mm-dd) of the selected week, or 'all'
   const [weeklyFilter, setWeeklyFilter] = useState<string>(() => {
     const d = new Date();
-    const startDay = (Math.ceil(d.getDate() / 7) - 1) * 7 + 1;
+    const monday = new Date(d); monday.setDate(d.getDate() - ((d.getDay() + 6) % 7));
     const pad = (n: number) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(startDay)}`;
+    return `${monday.getFullYear()}-${pad(monday.getMonth() + 1)}-${pad(monday.getDate())}`;
   });
   const [weeklyNote, setWeeklyNote] = useState('');
 
@@ -825,19 +825,17 @@ export default function App() {
   const getWeekInfo = (dateStr: string) => {
     const pad = (n: number) => String(n).padStart(2, '0');
     const d = new Date(dateStr); d.setHours(0, 0, 0, 0);
-    const year = d.getFullYear(); const month = d.getMonth(); const day = d.getDate();
-    const weekOfMonth = Math.ceil(day / 7); // 1..5
-    const startDay = (weekOfMonth - 1) * 7 + 1;
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const endDay = Math.min(weekOfMonth * 7, daysInMonth);
-    const start = new Date(year, month, startDay);
-    const end = new Date(year, month, endDay);
-    const key = `${year}-${pad(month + 1)}-${pad(startDay)}`;
+    // Week starts on Monday (realtime). Membership spans Mon..Sun; display range is Mon..Fri (working week).
+    const monday = new Date(d); monday.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    const friday = new Date(monday); friday.setDate(monday.getDate() + 4);
+    const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+    const key = `${monday.getFullYear()}-${pad(monday.getMonth() + 1)}-${pad(monday.getDate())}`;
+    const weekOfMonth = Math.ceil(friday.getDate() / 7); // numbered by the working week's Friday
     const label = `Week ${weekOfMonth}`;
     const fmt = (dt: Date) => `${pad(dt.getDate())}/${pad(dt.getMonth() + 1)}/${String(dt.getFullYear()).slice(-2)}`;
-    const range = `${fmt(start)} - ${fmt(end)}`;
+    const range = `${fmt(monday)} - ${fmt(friday)}`;
     const full = `${label} - ${range}`;
-    return { key, start, end, weekOfMonth, label, range, full };
+    return { key, start: monday, end: sunday, friday, weekOfMonth, label, range, full };
   };
 
   // A task belongs to the selected week based on its Start Date
