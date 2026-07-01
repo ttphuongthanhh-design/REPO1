@@ -1371,7 +1371,7 @@ export default function App() {
                           const isUrgent = diff < 2;
                           return (
                             <div className="overdue-item" key={t.id}>
-                              <span className={`overdue-item-dot ${isUrgent ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]' : 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]'}`}></span>
+                              <span className={`overdue-item-dot ${isUrgent ? 'bg-rose-500' : 'bg-amber-500'}`}></span>
                               <div className="flex-1">
                                 <div className="overdue-item-title font-semibold text-white">{t.title}</div>
                                 <div className="overdue-item-meta text-[10px] text-slate-400 flex items-center gap-1 flex-wrap">

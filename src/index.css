@@ -714,26 +714,27 @@ button:active {
 }
 
 .overdue-list {
-  max-height: 250px;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 .overdue-item {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 10px 0;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
   border-bottom: 1px solid var(--panel-border);
 }
 .overdue-item:last-child {
   border-bottom: none;
 }
 .overdue-item-dot {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  margin-top: 5px;
+  align-self: flex-start;
+  margin-top: 4px;
   flex-shrink: 0;
-  box-shadow: 0 0 6px currentColor;
+  box-shadow: none;
 }
 .overdue-item-title {
   font-size: 12px;
