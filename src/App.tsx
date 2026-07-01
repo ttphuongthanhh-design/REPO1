@@ -543,6 +543,7 @@ export default function App() {
   const [isAddingSubtype, setIsAddingSubtype] = useState(false);
   const [editingSubtype, setEditingSubtype] = useState<string | null>(null);
   const [editSubtypeInput, setEditSubtypeInput] = useState('');
+  const [subtypeMenuOpen, setSubtypeMenuOpen] = useState(false);
 
   // Member management modal
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
@@ -2595,44 +2596,57 @@ export default function App() {
               </div>
 
               <div className="fg">
-                <label>Sub-type <span className="st-hint">(bấm chọn · nhấp đôi để sửa · − để xoá)</span></label>
-                <div className="subtype-chips">
-                  {subtypes[taskForm.scope].map(st => (
-                    <div className={`st-chip ${taskForm.subtype === st ? 'active' : ''}`} key={st}>
-                      {editingSubtype === st ? (
-                        <input
-                          autoFocus
-                          className="st-chip-edit"
-                          value={editSubtypeInput}
-                          onChange={e => setEditSubtypeInput(e.target.value)}
-                          onBlur={() => commitRenameSubtype(st)}
-                          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commitRenameSubtype(st); } if (e.key === 'Escape') setEditingSubtype(null); }}
-                        />
-                      ) : (
-                        <span
-                          className="st-chip-txt"
-                          onClick={() => setTaskForm(prev => ({ ...prev, subtype: st }))}
-                          onDoubleClick={() => { setEditingSubtype(st); setEditSubtypeInput(st); }}
-                          title="Bấm chọn · nhấp đôi để sửa"
-                        >{st}</span>
-                      )}
-                      <button type="button" className="st-chip-del" onClick={() => handleRemoveSubtype(taskForm.scope, st)} title="Xoá sub-type">−</button>
-                    </div>
-                  ))}
-                  {isAddingSubtype ? (
-                    <div className="st-chip st-chip-adding">
-                      <input
-                        autoFocus
-                        className="st-chip-edit"
-                        placeholder="Tên sub-type mới…"
-                        value={newSubtypeInput}
-                        onChange={e => setNewSubtypeInput(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddSubtype(); } if (e.key === 'Escape') { setIsAddingSubtype(false); setNewSubtypeInput(''); } }}
-                      />
-                      <button type="button" className="st-chip-ok" onClick={handleAddSubtype} title="Thêm">+</button>
-                    </div>
-                  ) : (
-                    <button type="button" className="st-chip-add" onClick={() => setIsAddingSubtype(true)} title="Thêm sub-type">+</button>
+                <label>Sub-type <span className="st-hint">(nhấp đôi để sửa · − để xoá)</span></label>
+                <div className="st-box">
+                  <button type="button" className="st-box-btn" onClick={() => setSubtypeMenuOpen(o => !o)}>
+                    <span className={taskForm.subtype ? '' : 'st-box-ph'}>{taskForm.subtype || '— Chọn sub-type —'}</span>
+                    <span className="st-box-caret">▾</span>
+                  </button>
+                  {subtypeMenuOpen && (
+                      <div className="st-box-menu">
+                        {subtypes[taskForm.scope].length === 0 && !isAddingSubtype && (
+                          <div className="st-row-empty">Chưa có sub-type — thêm ở dưới.</div>
+                        )}
+                        {subtypes[taskForm.scope].map(st => (
+                          <div className={`st-row ${taskForm.subtype === st ? 'active' : ''}`} key={st}>
+                            {editingSubtype === st ? (
+                              <input
+                                autoFocus
+                                className="st-row-edit"
+                                value={editSubtypeInput}
+                                onChange={e => setEditSubtypeInput(e.target.value)}
+                                onBlur={() => commitRenameSubtype(st)}
+                                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commitRenameSubtype(st); } if (e.key === 'Escape') setEditingSubtype(null); }}
+                              />
+                            ) : (
+                              <span
+                                className="st-row-txt"
+                                onClick={() => { setTaskForm(prev => ({ ...prev, subtype: st })); setSubtypeMenuOpen(false); }}
+                                onDoubleClick={() => { setEditingSubtype(st); setEditSubtypeInput(st); }}
+                                title="Bấm chọn · nhấp đôi để sửa"
+                              >{taskForm.subtype === st && <Check size={12} className="st-row-check" />}{st}</span>
+                            )}
+                            <button type="button" className="st-row-del" onClick={() => handleRemoveSubtype(taskForm.scope, st)} title="Xoá sub-type">−</button>
+                          </div>
+                        ))}
+                        {isAddingSubtype ? (
+                          <div className="st-row st-row-adding">
+                            <input
+                              autoFocus
+                              className="st-row-edit"
+                              placeholder="Tên sub-type mới…"
+                              value={newSubtypeInput}
+                              onChange={e => setNewSubtypeInput(e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddSubtype(); } if (e.key === 'Escape') { setIsAddingSubtype(false); setNewSubtypeInput(''); } }}
+                            />
+                            <button type="button" className="st-row-ok" onClick={handleAddSubtype} title="Thêm">+</button>
+                          </div>
+                        ) : (
+                          <button type="button" className="st-row-addbtn" onClick={() => setIsAddingSubtype(true)}>
+                            <Plus size={12} /> Thêm sub-type
+                          </button>
+                        )}
+                      </div>
                   )}
                 </div>
               </div>
