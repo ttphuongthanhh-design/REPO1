@@ -2846,3 +2846,14 @@ html:not(.dark) .add-btn.hover\:text-white:hover { color: var(--text-main) !impo
 }
 .tc-linkrow svg { flex-shrink: 0; }
 .tc-linkrow-url { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+/* Compact LINK button on task cards */
+.tc-linkbtn {
+  display: inline-flex; align-items: center; gap: 5px; width: fit-content; margin-top: 10px;
+  background: var(--color-primary); color: #fff; border: none; border-radius: 7px;
+  padding: 5px 12px; font-size: 10px; font-weight: 800; letter-spacing: 0.6px;
+  text-decoration: none; box-shadow: 0 2px 8px var(--color-primary-glow);
+  transition: filter 0.15s, transform 0.15s;
+}
+.tc-linkbtn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+.tc-linkbtn svg { flex-shrink: 0; }

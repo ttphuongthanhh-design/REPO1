@@ -1000,18 +1000,16 @@ export default function App() {
           </button>
         </div>
 
-        {/* Attached link — always shown for quick access */}
+        {/* Attached link — compact button only (no URL text) */}
         {task.link && task.link.trim() && (
           <a
-            className="tc-linkrow"
+            className="tc-linkbtn"
             href={/^https?:\/\//i.test(task.link) ? task.link : `https://${task.link}`}
             target="_blank" rel="noopener noreferrer"
             onClick={e => e.stopPropagation()}
             title={task.link}
           >
-            <span className="tc-linkrow-tag">LINK</span>
-            <LinkIcon size={11} />
-            <span className="tc-linkrow-url">{task.link.replace(/^https?:\/\/(www\.)?/i, '').replace(/\/+$/, '')}</span>
+            <LinkIcon size={11} /> LINK
           </a>
         )}
 
