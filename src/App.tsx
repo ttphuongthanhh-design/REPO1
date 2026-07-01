@@ -1706,7 +1706,6 @@ export default function App() {
                       <div className="activity-section">
                         <div className="activity-h">
                           <Clock size={14} /> Activity Log
-                          <span className="activity-sub">Nhật ký mọi thay đổi — tự động giữ trong 3 tháng gần nhất</span>
                           <span className="col-cnt ml-auto">{recentActivity.length}</span>
                         </div>
                         {recentActivity.length === 0 ? (
