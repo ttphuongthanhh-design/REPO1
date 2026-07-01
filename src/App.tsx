@@ -1246,13 +1246,14 @@ export default function App() {
                     const statusText = isGood ? 'On Track' : isWarning ? 'At Risk' : 'Off Track';
                     const statusColor = isGood ? 'text-emerald-400' : isWarning ? 'text-amber-400' : 'text-rose-400';
                     const statusBg = isGood ? 'bg-emerald-950/20' : isWarning ? 'bg-amber-950/20' : 'bg-rose-950/20';
+                    const statusHex = isGood ? '#10b981' : isWarning ? '#f59e0b' : '#ef4444';
 
                     return (
                       <div className="scope-row" key={sc}>
-                        <div className="risk-dot" style={{ background: isGood ? '#10b981' : isWarning ? '#f59e0b' : '#ef4444', color: isGood ? '#10b981' : isWarning ? '#f59e0b' : '#ef4444' }}></div>
+                        <div className="risk-dot" style={{ background: statusHex, color: statusHex }}></div>
                         <div className="scope-name-lbl font-semibold">{config.name}</div>
                         <div className="scope-track">
-                          <div className="scope-track-fill" style={{ width: `${pct}%`, background: config.color }}></div>
+                          <div className="scope-track-fill" style={{ width: `${pct}%`, background: statusHex }}></div>
                         </div>
                         <div className={`scope-pct-lbl ${statusColor}`}>{pct}%</div>
                         <span className={`badge ${statusBg} ${statusColor} ml-2 font-bold`}>{statusText}</span>
