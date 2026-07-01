@@ -2968,3 +2968,52 @@ html:not(.dark) .add-btn.hover\:text-white:hover { color: var(--text-main) !impo
   .dash-card .dc-val { font-size: 22px; }
   .modal { padding: 16px; }
 }
+
+/* ===== Task Board filter dropdowns (Assignee / Scope) ===== */
+.board-filters { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.filter-dd { position: relative; }
+.filter-dd-btn {
+  display: inline-flex; align-items: center; gap: 7px; min-height: 38px;
+  background: var(--bg-secondary); border: 1px solid var(--panel-border); color: var(--text-main);
+  border-radius: 10px; padding: 7px 12px; font-size: 12px; font-weight: 600; font-family: inherit;
+}
+.filter-dd-btn:hover { border-color: var(--color-primary); background: var(--bg-primary); transform: none; }
+.filter-dd-btn.has-val { border-color: var(--color-primary); color: var(--color-primary); background: var(--color-primary-glow); }
+.filter-dd-btn .av { width: 18px; height: 18px; font-size: 8px; }
+.filter-dd-caret { color: var(--text-muted); font-size: 10px; margin-left: 2px; }
+.filter-dd-swatch { width: 10px; height: 10px; border-radius: 3px; border: 1px solid transparent; flex-shrink: 0; box-sizing: border-box; }
+
+.filter-dd-backdrop { position: fixed; inset: 0; z-index: 60; }
+.filter-dd-menu {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 61; min-width: 224px; max-width: min(280px, 88vw);
+  background: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 12px;
+  box-shadow: 0 14px 34px rgba(0,0,0,0.24); padding: 6px;
+  transform-origin: top left; animation: fddIn 0.15s cubic-bezier(0.2, 0, 0.2, 1);
+}
+@keyframes fddIn { from { opacity: 0; transform: translateY(-6px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.filter-dd-search {
+  width: 100%; background: var(--input-bg); color: var(--text-main); border: 1px solid var(--panel-border);
+  border-radius: 8px; padding: 9px 11px; font-size: 12.5px; outline: none; margin-bottom: 6px; font-family: inherit;
+}
+.filter-dd-search:focus { border-color: var(--color-primary); }
+.filter-dd-list { display: flex; flex-direction: column; gap: 2px; max-height: 288px; overflow-y: auto; }
+.filter-dd-item {
+  display: flex; align-items: center; gap: 9px; width: 100%; min-height: 40px; text-align: left;
+  background: transparent; border: none; color: var(--text-main); border-radius: 8px;
+  padding: 8px 10px; font-size: 12.5px; font-weight: 600; transition: background 0.12s;
+}
+.filter-dd-item:hover { background: var(--bg-secondary); transform: none; }
+.filter-dd-item.sel { background: var(--color-primary-glow); color: var(--color-primary); }
+.filter-dd-item .av { width: 22px; height: 22px; font-size: 9px; flex-shrink: 0; }
+.fdd-ico { width: 22px; display: inline-flex; justify-content: center; color: var(--text-muted); flex-shrink: 0; }
+.filter-dd-item.sel .fdd-ico { color: var(--color-primary); }
+.fdd-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fdd-check { color: var(--color-primary); flex-shrink: 0; }
+.filter-dd-empty { padding: 12px; text-align: center; font-size: 12px; color: var(--text-muted); font-style: italic; }
+
+@media (max-width: 640px) {
+  .filter-dd-btn { min-height: 44px; }
+  .filter-dd-item { min-height: 44px; padding: 11px 12px; font-size: 14px; }
+  .filter-dd-search { font-size: 16px; min-height: 44px; }
+  .filter-dd-menu { min-width: 240px; }
+}
