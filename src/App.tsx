@@ -1000,6 +1000,21 @@ export default function App() {
           </button>
         </div>
 
+        {/* Attached link — always shown for quick access */}
+        {task.link && task.link.trim() && (
+          <a
+            className="tc-linkrow"
+            href={/^https?:\/\//i.test(task.link) ? task.link : `https://${task.link}`}
+            target="_blank" rel="noopener noreferrer"
+            onClick={e => e.stopPropagation()}
+            title={task.link}
+          >
+            <span className="tc-linkrow-tag">LINK</span>
+            <LinkIcon size={11} />
+            <span className="tc-linkrow-url">{task.link.replace(/^https?:\/\/(www\.)?/i, '').replace(/\/+$/, '')}</span>
+          </a>
+        )}
+
         {/* Expanded details */}
         {expanded && (
           <div className="tc-details" onClick={e => e.stopPropagation()}>
@@ -1014,12 +1029,6 @@ export default function App() {
             <div className="tcd-row"><span className="tcd-k">Bắt đầu</span><span>{task.start || '—'}</span></div>
             <div className="tcd-row"><span className="tcd-k">Deadline</span><span className={overdue ? 'tt-overdue' : ''}>{task.deadline || '—'}</span></div>
             {colIdx === 3 && task.completedAt && <div className="tcd-row"><span className="tcd-k">Hoàn thành</span><span className="tc-done-date">✓ {new Date(task.completedAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span></div>}
-            {task.link && (
-              <a className="tc-link" href={task.link} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>
-                <LinkIcon size={10} />
-                <span className="tc-link-text">{task.link.replace(/^https?:\/\/(www\.)?/, '')}</span>
-              </a>
-            )}
             {task.desc && <div className="tcd-desc">{task.desc}</div>}
             {task.note && <div className="tcd-note">"{task.note}"</div>}
           </div>
@@ -2555,7 +2564,7 @@ export default function App() {
             </div>
 
             <div className="fg">
-              <label>Link / Đường dẫn liên kết</label>
+              <label>Link</label>
               <input
                 type="url"
                 value={taskForm.link || ''}
@@ -2596,7 +2605,7 @@ export default function App() {
               </div>
 
               <div className="fg">
-                <label>Sub-type <span className="st-hint">(nhấp đôi để sửa · − để xoá)</span></label>
+                <label>Sub-type</label>
                 <div className="st-box">
                   <button type="button" className="st-box-btn" onClick={() => setSubtypeMenuOpen(o => !o)}>
                     <span className={taskForm.subtype ? '' : 'st-box-ph'}>{taskForm.subtype || '— Chọn sub-type —'}</span>

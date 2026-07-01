@@ -2830,3 +2830,19 @@ html:not(.dark) .add-btn.hover\:text-white:hover { color: var(--text-main) !impo
   border-radius: 8px; padding: 7px; font-size: 11.5px; font-weight: 700;
 }
 .st-row-addbtn:hover { border-color: var(--color-primary); background: var(--color-primary-glow); }
+
+/* Attached LINK row on Kanban task cards */
+.tc-linkrow {
+  display: flex; align-items: center; gap: 6px; margin-top: 8px;
+  background: var(--color-primary-glow); border: 1px solid var(--panel-border);
+  border-radius: 8px; padding: 5px 8px; text-decoration: none;
+  color: var(--color-primary); font-size: 10px; font-weight: 600; overflow: hidden;
+  transition: border-color 0.15s;
+}
+.tc-linkrow:hover { border-color: var(--color-primary); text-decoration: underline; }
+.tc-linkrow-tag {
+  background: var(--color-primary); color: #fff; font-size: 8px; font-weight: 800;
+  letter-spacing: 0.6px; padding: 2px 6px; border-radius: 5px; flex-shrink: 0;
+}
+.tc-linkrow svg { flex-shrink: 0; }
+.tc-linkrow-url { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
